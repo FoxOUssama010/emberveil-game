@@ -1,0 +1,4260 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>EMBERVEIL — 2D Pixel Action-Adventure, Builder & Co-op</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;800&display=swap" rel="stylesheet" />
+  <!-- Asynchronous PeerJS load with safe offline/local fallback -->
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js" async></script>
+  <style>
+    /* =========================================================================
+       1. VIEWPORT & PIXEL-ART CANVAS RESET
+       Ensures fullscreen 100vw x 100dvh, zero scrolling, and sharp pixels.
+       ========================================================================= */
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+    }
+
+    html, body {
+      width: 100vw;
+      height: 100dvh;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #07050c;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      font-family: "Inter", ui-monospace, SFMono-Regular, Menlo, monospace;
+      color: #f3efe6;
+      direction: ltr;
+    }
+
+    #gameCanvas {
+      display: block;
+      width: 100vw;
+      height: 100dvh;
+      background: #07050c;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      touch-action: none;
+      cursor: crosshair;
+    }
+
+    /* =========================================================================
+       2. RESPONSIVE TITLE & CO-OP LOBBY OVERLAYS (MOBILE & DESKTOP FRIENDLY)
+       ========================================================================= */
+    .overlay-backdrop {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      background: radial-gradient(circle at center, rgba(16, 12, 30, 0.58) 0%, rgba(6, 4, 12, 0.88) 100%);
+      z-index: 20;
+      pointer-events: auto;
+      touch-action: manipulation;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .pixel-card {
+      width: 100%;
+      max-width: 440px;
+      max-height: 92dvh;
+      overflow-y: auto;
+      background: rgba(15, 12, 27, 0.96);
+      border: 2px solid #594f82;
+      border-radius: 14px;
+      padding: 18px 18px 20px;
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      text-align: center;
+    }
+
+    .game-logo {
+      margin: 0 0 4px;
+      font-size: clamp(28px, 7vw, 40px);
+      font-weight: 800;
+      letter-spacing: 3px;
+      color: #ff9436;
+      text-shadow: 0 3px 0 #38111b, 0 0 22px rgba(255, 136, 51, 0.45);
+    }
+
+    .game-subtitle {
+      margin: 0 0 14px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      color: #78f0ff;
+      text-transform: uppercase;
+    }
+
+    .feature-pills {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+
+    .pill {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: rgba(42, 36, 68, 0.85);
+      border: 1px solid #4e4575;
+      color: #dfd9f5;
+    }
+
+    .btn-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .btn {
+      width: 100%;
+      min-height: 46px;
+      padding: 11px 16px;
+      border-radius: 10px;
+      border: 2px solid transparent;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 0.6px;
+      cursor: pointer;
+      transition: transform 0.08s ease, filter 0.12s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      touch-action: manipulation;
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    .btn-solo {
+      background: linear-gradient(180deg, #2b8a57 0%, #1d633d 100%);
+      border-color: #63ffab;
+      color: #ffffff;
+      box-shadow: 0 4px 16px rgba(43, 138, 87, 0.4);
+    }
+
+    .btn-create {
+      background: linear-gradient(180deg, #27689c 0%, #1a4970 100%);
+      border-color: #5ceeff;
+      color: #ffffff;
+    }
+
+    .btn-join {
+      background: linear-gradient(180deg, #8c5324 0%, #633917 100%);
+      border-color: #ffd452;
+      color: #ffffff;
+    }
+
+    .btn-secondary {
+      background: #25203b;
+      border-color: #544b7a;
+      color: #d9d3f0;
+      min-height: 40px;
+      font-size: 13px;
+    }
+
+    .row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .field-group {
+      text-align: left;
+      margin-bottom: 12px;
+    }
+
+    .field-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      color: #b4abd6;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+    }
+
+    .text-input {
+      width: 100%;
+      height: 44px;
+      padding: 0 12px;
+      border-radius: 9px;
+      border: 2px solid #584f80;
+      background: #0b0914;
+      color: #ffffff;
+      font-family: ui-monospace, monospace;
+      font-size: 16px;
+      font-weight: 700;
+      outline: none;
+      user-select: text;
+      -webkit-user-select: text;
+    }
+
+    .text-input:focus {
+      border-color: #5ceeff;
+    }
+
+    .code-box {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      background: #0a0812;
+      border: 2px dashed #ffd452;
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+    }
+
+    .room-code-text {
+      font-family: ui-monospace, monospace;
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      color: #ffd452;
+    }
+
+    .copy-btn {
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid #ffd452;
+      background: #362b14;
+      color: #ffe89e;
+      font-weight: 700;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .color-swatches {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 4px;
+    }
+
+    .swatch {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      border: 2px solid rgba(255, 255, 255, 0.25);
+      cursor: pointer;
+    }
+
+    .swatch.active {
+      border: 3px solid #ffffff;
+      transform: scale(1.1);
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+    }
+
+    .player-list-box {
+      background: #0b0914;
+      border: 1px solid #3f385e;
+      border-radius: 9px;
+      padding: 8px 10px;
+      margin-bottom: 12px;
+      text-align: left;
+      font-size: 12px;
+    }
+
+    .player-entry {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .player-entry:last-child {
+      border-bottom: none;
+    }
+
+    .status-line {
+      font-size: 12px;
+      color: #78f0ff;
+      margin-bottom: 10px;
+      min-height: 16px;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- =========================================================================
+       TITLE SCREEN OVERLAY
+       ========================================================================= -->
+  <div id="titleOverlay" class="overlay-backdrop">
+    <div class="pixel-card">
+      <h1 class="game-logo">EMBERVEIL</h1>
+      <div class="game-subtitle">2D Pixel Action-Adventure, Builder & Co-op</div>
+      <div class="feature-pills">
+        <span class="pill">🌲 4 Biomes & Day/Night</span>
+        <span class="pill">🏠 House Building</span>
+        <span class="pill">⚔️ Bosses & Daily Quests</span>
+        <span class="pill">🤝 Co-op & Chiptune Music</span>
+      </div>
+      <div class="btn-stack">
+        <button id="btnSolo" class="btn btn-solo" type="button">⚔️ SOLO PLAY</button>
+        <button id="btnCreateOpen" class="btn btn-create" type="button">🏠 CREATE ROOM</button>
+        <button id="btnJoinOpen" class="btn btn-join" type="button">🔑 JOIN ROOM</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       CREATE ROOM (HOST LOBBY) OVERLAY
+       ========================================================================= -->
+  <div id="createOverlay" class="overlay-backdrop hidden">
+    <div class="pixel-card">
+      <h2 style="margin:0 0 6px;color:#5ceeff;font-size:20px;">CO-OP ROOM LOBBY</h2>
+      <div class="status-line" id="hostStatusText">Share this room code with your friend:</div>
+
+      <div class="code-box">
+        <span id="hostRoomCode" class="room-code-text">EMB-0000</span>
+        <button id="btnCopyCode" class="copy-btn" type="button">📋 COPY CODE</button>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" for="hostNameInput">Your Hero Name & Tunic Color</label>
+        <input id="hostNameInput" class="text-input" type="text" maxlength="12" value="HostHero" />
+        <div id="hostSwatches" class="color-swatches"></div>
+      </div>
+
+      <div class="field-group">
+        <span class="field-label">Connected Heroes</span>
+        <div id="hostPlayerList" class="player-list-box"></div>
+      </div>
+
+      <div class="btn-stack">
+        <button id="btnStartCoop" class="btn btn-solo" type="button">▶ START GAME</button>
+        <button id="btnHostBack" class="btn btn-secondary" type="button">← BACK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       JOIN ROOM (GUEST LOBBY) OVERLAY
+       ========================================================================= -->
+  <div id="joinOverlay" class="overlay-backdrop hidden">
+    <div class="pixel-card">
+      <h2 style="margin:0 0 6px;color:#ffd452;font-size:20px;">JOIN FRIEND'S ROOM</h2>
+      <div class="status-line" id="joinStatusText">Enter the 4-digit Room Code (e.g. EMB-4829)</div>
+
+      <div class="field-group">
+        <label class="field-label" for="joinCodeInput">Room Code</label>
+        <input id="joinCodeInput" class="text-input" type="text" maxlength="8" placeholder="EMB-4829" autocomplete="off" style="text-transform:uppercase;text-align:center;font-size:20px;letter-spacing:2px;" />
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" for="guestNameInput">Your Hero Name & Tunic Color</label>
+        <input id="guestNameInput" class="text-input" type="text" maxlength="12" value="AllyHero" />
+        <div id="guestSwatches" class="color-swatches"></div>
+      </div>
+
+      <div class="btn-stack">
+        <button id="btnJoinConnect" class="btn btn-join" type="button">🚀 JOIN</button>
+        <button id="btnJoinBack" class="btn btn-secondary" type="button">← BACK</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    "use strict";
+
+    /* =========================================================================
+       1. SYNTHESIZED WEBAUDIO SFX & CHIPTUNE AMBIENT MUSIC ENGINE
+       ========================================================================= */
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+        this.initialized = false;
+        this.bgmTimer = 0;
+        this.bgmStep = 0;
+        this.musicEnabled = true;
+        this.musicClock = 0;
+      }
+
+      init() {
+        if (this.initialized) {
+          if (this.ctx && this.ctx.state === "suspended") {
+            try { this.ctx.resume(); } catch (_) {}
+          }
+          return;
+        }
+        try {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) {
+            this.ctx = new AudioCtx();
+            if (this.ctx.state === "suspended") this.ctx.resume();
+            this.initialized = true;
+          }
+        } catch (_) {
+          this.ctx = null;
+        }
+      }
+
+      tone(freq, endFreq, duration, wave, vol, delay = 0) {
+        if (this.muted || !this.ctx) return;
+        try {
+          if (this.ctx.state === "suspended") this.ctx.resume();
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = wave;
+          osc.frequency.setValueAtTime(freq, now + delay);
+          if (endFreq !== freq) {
+            osc.frequency.exponentialRampToValueAtTime(Math.max(20, endFreq), now + delay + duration);
+          }
+          gain.gain.setValueAtTime(vol, now + delay);
+          gain.gain.exponentialRampToValueAtTime(0.0008, now + delay + duration);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now + delay);
+          osc.stop(now + delay + duration + 0.015);
+        } catch (_) {}
+      }
+
+      play(type) {
+        if (this.muted || !this.ctx) return;
+        switch (type) {
+          case "swing":
+            this.tone(330, 95, 0.11, "triangle", 0.13);
+            break;
+          case "bow":
+            this.tone(560, 210, 0.12, "triangle", 0.12);
+            this.tone(300, 620, 0.06, "sine", 0.06);
+            break;
+          case "ember":
+            this.tone(520, 130, 0.22, "sawtooth", 0.13);
+            this.tone(780, 260, 0.18, "triangle", 0.09);
+            break;
+          case "hit":
+            this.tone(155, 48, 0.12, "square", 0.14);
+            break;
+          case "gather":
+            this.tone(250, 410, 0.08, "triangle", 0.12);
+            break;
+          case "build":
+            this.tone(145, 210, 0.09, "square", 0.11);
+            this.tone(290, 430, 0.11, "triangle", 0.10, 0.05);
+            break;
+          case "craft":
+            this.tone(440, 554, 0.09, "triangle", 0.12, 0.00);
+            this.tone(554, 659, 0.09, "triangle", 0.12, 0.07);
+            this.tone(659, 880, 0.15, "triangle", 0.14, 0.14);
+            break;
+          case "potion":
+            this.tone(370, 554, 0.10, "sine", 0.12, 0.00);
+            this.tone(554, 784, 0.14, "sine", 0.13, 0.08);
+            break;
+          case "chat":
+            this.tone(660, 880, 0.08, "sine", 0.10, 0.00);
+            this.tone(880, 1046, 0.10, "sine", 0.09, 0.07);
+            break;
+          case "revive":
+            this.tone(330, 440, 0.12, "triangle", 0.14, 0.00);
+            this.tone(440, 660, 0.14, "triangle", 0.14, 0.10);
+            this.tone(660, 880, 0.22, "triangle", 0.16, 0.20);
+            break;
+          case "gate":
+            this.tone(110, 55, 0.35, "sawtooth", 0.16, 0.00);
+            this.tone(330, 660, 0.28, "triangle", 0.13, 0.12);
+            break;
+          case "roar":
+            this.tone(125, 42, 0.46, "sawtooth", 0.20, 0.00);
+            break;
+          case "hurt":
+            this.tone(190, 72, 0.16, "sawtooth", 0.16);
+            break;
+          case "victory":
+            this.tone(523.25, 523.25, 0.14, "triangle", 0.15, 0.00);
+            this.tone(659.25, 659.25, 0.14, "triangle", 0.15, 0.13);
+            this.tone(783.99, 783.99, 0.14, "triangle", 0.15, 0.26);
+            this.tone(1046.5, 1046.5, 0.36, "triangle", 0.18, 0.39);
+            break;
+          default:
+            this.tone(440, 520, 0.06, "sine", 0.08);
+        }
+      }
+
+      updateMusic(dt, active) {
+        if (!active || this.muted || !this.musicEnabled || !this.ctx || this.ctx.state !== "running") return;
+        this.bgmTimer -= dt;
+        if (this.bgmTimer <= 0) {
+          // Original procedural adventure theme: melody, bass pulse and soft chord accents.
+          const beat = this.bgmStep % 16;
+          const roots = [110, 146.83, 98, 130.81];
+          const scale = [0, 3, 5, 7, 10, 7, 5, 3, 0, 5, 7, 12, 10, 7, 5, 3];
+          const root = roots[Math.floor(this.bgmStep / 16) % roots.length];
+          const melody = root * Math.pow(2, (scale[beat] + 12) / 12);
+          this.bgmTimer = 0.25;
+          this.tone(melody, melody * 0.995, 0.22, "triangle", 0.024);
+          if (beat % 4 === 0) this.tone(root / 2, root / 2, 0.38, "sine", 0.035);
+          if (beat % 8 === 0) {
+            this.tone(root * 1.5, root * 1.5, 0.52, "sine", 0.010, 0.02);
+            this.tone(root * 2, root * 2, 0.42, "sine", 0.008, 0.04);
+          }
+          if (beat % 4 === 2) this.tone(72, 42, 0.055, "square", 0.009);
+          this.bgmStep++;
+        }
+      }
+    }
+
+    const sfx = new SoundEngine();
+
+    /* =========================================================================
+       2. CONSTANTS, BIOMES, TILES, RECIPES, BUILD STRUCTURES & QUICK CHAT
+       ========================================================================= */
+    const TILE_SIZE = 16;
+    const WORLD_W = 120;
+    const WORLD_H = 76;
+    const SAVE_KEY = "emberveil_coop_save_v2";
+
+    const HERO_COLORS = ["#2e86de", "#ee5253", "#10ac84", "#ff9f43", "#8854d0", "#00d2d3"];
+
+    const QUICK_CHATS = [
+      "Follow me!",
+      "Help!",
+      "Need Wood",
+      "Attack Boss!",
+      "Build here!",
+      "Nice!"
+    ];
+
+    const BIOME = {
+      VILLAGE: 0,
+      FOREST: 1,
+      CAVERNS: 2,
+      WASTES: 3
+    };
+
+    const TILE = {
+      GRASS: 0,
+      PATH: 1,
+      FOREST_GRASS: 2,
+      CAVERN_FLOOR: 3,
+      CAVERN_WALL: 4,
+      ASH_FLOOR: 5,
+      OBSIDIAN_WALL: 6,
+      WATER: 7,
+      LAVA: 8,
+      ROOT_GATE: 9,
+      ROOT_GATE_OPEN: 10,
+      FENCE: 11,
+      SANCTUM_FLOOR: 12
+    };
+
+    const NODE_TYPE = {
+      TREE: "tree",
+      STONE: "stone",
+      HERB: "herb",
+      IRON: "iron",
+      CRYSTAL: "crystal",
+      COAL: "coal",
+      EMBER: "ember",
+      CHEST: "chest",
+      CAMPFIRE: "campfire"
+    };
+
+    const BUILD_DEFS = [
+      { id: "floor",    name: "Wood Floor",     short: "Floor",  cost: { wood: 2 },                  solid: false, hp: 60 },
+      { id: "wwall",    name: "Wood Wall",      short: "W.Wall", cost: { wood: 3 },                  solid: true,  hp: 90 },
+      { id: "swall",    name: "Stone Wall",     short: "S.Wall", cost: { stone: 3 },                 solid: true,  hp: 200 },
+      { id: "door",     name: "Auto Door",      short: "Door",   cost: { wood: 4 },                  solid: false, hp: 110, isDoor: true },
+      { id: "torch",    name: "Glow Torch",     short: "Torch",  cost: { wood: 2, herb: 1 },         solid: false, hp: 50,  light: 82 },
+      { id: "campfire", name: "Campfire",       short: "Fire",   cost: { wood: 4, stone: 2 },        solid: false, hp: 90,  light: 92, isCampfire: true },
+      { id: "bed",      name: "Healing Bed",    short: "Bed",    cost: { wood: 6, herb: 3 },         solid: false, hp: 120, isBed: true },
+      { id: "turret",   name: "Crystal Turret", short: "Turret", cost: { stone: 4, crystal: 3, iron: 2 }, solid: true, hp: 160, isTurret: true, light: 60 }
+    ];
+
+    const ITEM_DEFS = {
+      wood_axe: {
+        id: "wood_axe", name: "Wooden Axe", type: "weapon", dmg: 14, range: 23, cooldown: 0.29,
+        chopMult: 2.6, mineMult: 1.0, color: "#c98b4b", desc: "Chops trees fast & defends"
+      },
+      iron_pick: {
+        id: "iron_pick", name: "Iron Pickaxe", type: "weapon", dmg: 16, range: 23, cooldown: 0.29,
+        chopMult: 1.1, mineMult: 3.0, color: "#b5c6d9", desc: "Mines stone, iron & crystal fast"
+      },
+      hunters_bow: {
+        id: "hunters_bow", name: "Hunter's Bow", type: "bow", dmg: 22, range: 175, cooldown: 0.32,
+        chopMult: 1.0, mineMult: 1.0, color: "#e3a354", desc: "Fires swift hunting arrows"
+      },
+      iron_sword: {
+        id: "iron_sword", name: "Iron Broadsword", type: "weapon", dmg: 29, range: 27, cooldown: 0.25,
+        chopMult: 1.4, mineMult: 1.2, color: "#e4eef7", desc: "Heavy steel blade with wide arc"
+      },
+      crystal_blade: {
+        id: "crystal_blade", name: "Crystal Blade", type: "weapon", dmg: 45, range: 30, cooldown: 0.23,
+        chopMult: 1.6, mineMult: 1.6, color: "#4ff2ff", desc: "Unlocks Pulse Caverns Root Gate"
+      },
+      ember_sword: {
+        id: "ember_sword", name: "Ember Greatsword", type: "weapon", dmg: 64, range: 34, cooldown: 0.25,
+        chopMult: 2.0, mineMult: 2.0, color: "#ff7733", shootsWave: true, desc: "Launches piercing flaming waves"
+      },
+      potion: {
+        id: "potion", name: "Health Potion", type: "consumable", heal: 50, color: "#ff4466",
+        desc: "Restores 50 HP immediately"
+      }
+    };
+
+    const RECIPES = [
+      { id: "craft_potion",        name: "Health Potion",     desc: "Restores +50 HP",                      cost: { herb: 2, wood: 1 },            action: "potion" },
+      { id: "craft_cabin",         name: "Instant 5x5 Cabin", desc: "Builds walls, floor, door, torch & bed", cost: { wood: 24, stone: 6, herb: 4 }, action: "cabin" },
+      { id: "craft_axe",           name: "Wooden Axe",        desc: "Chops trees rapidly (14 DMG)",         cost: { wood: 3, stone: 2 },           itemId: "wood_axe" },
+      { id: "craft_pick",          name: "Iron Pickaxe",      desc: "Mines ore & crystal fast (16 DMG)",    cost: { iron: 3, wood: 2 },            itemId: "iron_pick" },
+      { id: "craft_bow",           name: "Hunter's Bow",      desc: "Ranged arrows (22 DMG)",               cost: { wood: 6, herb: 2 },            itemId: "hunters_bow" },
+      { id: "craft_iron_sword",    name: "Iron Broadsword",   desc: "Wide steel slash (29 DMG)",            cost: { iron: 6, wood: 3 },            itemId: "iron_sword" },
+      { id: "craft_iron_armor",    name: "Iron Armor",        desc: "150 Max HP + 32% Damage Reduction",    cost: { iron: 8, stone: 4 },           action: "armor" },
+      { id: "craft_crystal_blade", name: "Crystal Blade",     desc: "45 DMG + Opens Root Gate!",            cost: { crystal: 6, iron: 4, wood: 2 },itemId: "crystal_blade" },
+      { id: "craft_ember_sword",   name: "Ember Greatsword",  desc: "64 DMG + Fires Flaming Waves!",        cost: { ember: 5, coal: 4, crystal: 3 }, itemId: "ember_sword" }
+    ];
+
+    /* =========================================================================
+       3. RESPONSIVE DPR-SAFE PIXEL CANVAS & OFFSCREEN LIGHTING
+       ========================================================================= */
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d", { alpha: false });
+    const lightCanvas = document.createElement("canvas");
+    const lightCtx = lightCanvas.getContext("2d");
+
+    let logicalW = 480;
+    let logicalH = 280;
+    let dpr = 1;
+    let isPortrait = false;
+    let showTouchControls = ("ontouchstart" in window) || (navigator.maxTouchPoints > 0);
+
+    function enforceContextState() {
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.imageSmoothingEnabled = false;
+      ctx.direction = "ltr";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+    }
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      const rawW = rect.width > 0 ? rect.width : (window.innerWidth || 800);
+      const rawH = rect.height > 0 ? rect.height : (window.innerHeight || 600);
+      const aspect = Math.max(0.42, Math.min(2.6, rawW / Math.max(1, rawH)));
+
+      isPortrait = rawH > rawW;
+      if (isPortrait) {
+        logicalW = 320;
+        logicalH = Math.max(250, Math.min(620, Math.round(logicalW / aspect)));
+      } else {
+        logicalH = 280;
+        logicalW = Math.max(340, Math.min(680, Math.round(logicalH * aspect)));
+      }
+
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(logicalW * dpr);
+      canvas.height = Math.round(logicalH * dpr);
+      lightCanvas.width = logicalW;
+      lightCanvas.height = logicalH;
+      enforceContextState();
+    }
+
+    window.addEventListener("resize", resizeCanvas);
+    window.addEventListener("orientationchange", resizeCanvas);
+    resizeCanvas();
+
+    function clientToLogical(clientX, clientY) {
+      const rect = canvas.getBoundingClientRect();
+      const w = rect.width > 0 ? rect.width : (window.innerWidth || 1);
+      const h = rect.height > 0 ? rect.height : (window.innerHeight || 1);
+      return {
+        x: ((clientX - rect.left) / w) * logicalW,
+        y: ((clientY - rect.top) / h) * logicalH
+      };
+    }
+
+    /* =========================================================================
+       4. PROCEDURAL PIXEL-ART SPRITE ATLAS (16x16 & 32x32 CRISP BITMAPS)
+       ========================================================================= */
+    const SPRITES = {};
+
+    function makeSprite(w, h, drawFn) {
+      const c = document.createElement("canvas");
+      c.width = w;
+      c.height = h;
+      const g = c.getContext("2d");
+      g.imageSmoothingEnabled = false;
+      drawFn(g, w, h);
+      return c;
+    }
+
+    function px(g, x, y, w, h, color) {
+      g.fillStyle = color;
+      g.fillRect(x, y, w, h);
+    }
+
+    function buildSpriteAtlas() {
+      SPRITES.grass0 = makeSprite(16, 16, (g) => {
+        px(g, 0, 0, 16, 16, "#2c5e3b");
+        px(g, 3, 4, 2, 1, "#377348");
+        px(g, 11, 10, 2, 1, "#377348");
+        px(g, 7, 13, 1, 2, "#224a2e");
+      });
+      SPRITES.grass1 = makeSprite(16, 16, (g) => {
+        px(g, 0, 0, 16, 16, "#2c5e3b");
+        px(g, 5, 2, 1, 2, "#438756");
+        px(g, 12, 6, 2, 1, "#224a2e");
+        px(g, 2, 12, 2, 1, "#377348");
+      });
+      SPRITES.fgrass0 = makeSprite(16, 16, (g) => {
+        px(g, 0, 0, 16, 16, "#1f4733");
+        px(g, 2, 5, 2, 2, "#295c42");
+        px(g, 10, 11, 2, 1, "#163526");
+      });
+      SPRITES.fgrass1 = makeSprite(16, 16, (g) => {
+        px(g, 0, 0, 16, 16, "#1f4733");
+        px(g, 8, 3, 2, 1, "#2f6b4d");
+        px(g, 4, 12, 1, 2, "#163526");
+      });
+      SPRITES.path = makeSprite(16, 16, (g) => {
+        px(g, 0, 0, 16, 16, "#8c6d46");
+        px(g, 2, 2, 4, 3, "#9e7c52");
+        px(g, 9, 4, 5, 4, "#7a5d3a");
+        px(g, 3, 9, 5, 4, "#7a5d3a");
+        px(g, 10, 11, 4, 3, "#9e7c52");
+      });
+      SPRITES.cavern_floor = makeSprite(16, 16, (g) => {
+        px(g, 0, 0, 16, 16, "#282b38");
+        px(g, 2, 3, 3, 2, "#323647");
+        px(g, 10, 9, 4, 2, "#1f222d");
+        px(g, 6, 13, 2, 1, "#3a3f54");
+      });
+      SPRITES.sanctum_floor = makeSprite(16, 16, (g) => {
+        px(g, 0, 0, 16, 16, "#231e38");
+        px(g, 1, 1, 14, 14, "#2b2445");
+        px(g, 7, 7, 2, 2, "#463a70");
+      });
+      SPRITES.cavern_wall = makeSprite(16, 16, (g) => {
+        px(g, 0, 0, 16, 16, "#14161f");
+        px(g, 1, 1, 14, 11, "#3b4054");
+        px(g, 2, 2, 6, 5, "#4d536b");
+        px(g, 9, 4, 5, 6, "#2e3242");
+        px(g, 1, 12, 14, 3, "#212430");
+      });
+      SPRITES.ash_floor = makeSprite(16, 16, (g) => {
+        px(g, 0, 0, 16, 16, "#362729");
+        px(g, 3, 4, 3, 2, "#453235");
+        px(g, 11, 11, 2, 2, "#291d1e");
+        px(g, 7, 8, 1, 1, "#ff6a2b");
+      });
+      SPRITES.obsidian_wall = makeSprite(16, 16, (g) => {
+        px(g, 0, 0, 16, 16, "#120c14");
+        px(g, 1, 1, 14, 12, "#2d1d33");
+        px(g, 3, 2, 4, 7, "#452b4f");
+        px(g, 9, 5, 4, 6, "#1f1324");
+        px(g, 6, 11, 3, 1, "#ff5522");
+      });
+      SPRITES.water = makeSprite(16, 16, (g) => {
+        px(g, 0, 0, 16, 16, "#1d4e89");
+        px(g, 2, 4, 5, 1, "#3b82c4");
+        px(g, 8, 11, 6, 1, "#3b82c4");
+      });
+      SPRITES.lava = makeSprite(16, 16, (g) => {
+        px(g, 0, 0, 16, 16, "#c93b14");
+        px(g, 2, 3, 6, 3, "#ff7b1c");
+        px(g, 8, 10, 5, 3, "#ffd13b");
+      });
+      SPRITES.fence = makeSprite(16, 16, (g) => {
+        px(g, 0, 0, 16, 16, "#2c5e3b");
+        px(g, 2, 4, 3, 10, "#754c29");
+        px(g, 11, 4, 3, 10, "#754c29");
+        px(g, 0, 6, 16, 2, "#9c683b");
+        px(g, 0, 10, 16, 2, "#9c683b");
+      });
+      SPRITES.root_gate = makeSprite(16, 16, (g) => {
+        px(g, 0, 0, 16, 16, "#282b38");
+        px(g, 1, 0, 3, 16, "#5c3824");
+        px(g, 6, 0, 4, 16, "#73462d");
+        px(g, 12, 0, 3, 16, "#5c3824");
+        px(g, 0, 5, 16, 2, "#3c8c6e");
+        px(g, 0, 11, 16, 2, "#4ff2ff");
+      });
+      SPRITES.root_gate_open = makeSprite(16, 16, (g) => {
+        px(g, 0, 0, 16, 16, "#282b38");
+        px(g, 0, 0, 2, 16, "#5c3824");
+        px(g, 14, 0, 2, 16, "#5c3824");
+        px(g, 2, 2, 1, 3, "#4ff2ff");
+        px(g, 13, 11, 1, 3, "#4ff2ff");
+      });
+
+      // Resource Nodes
+      SPRITES.tree = makeSprite(16, 22, (g) => {
+        px(g, 6, 13, 4, 8, "#5e3a1e");
+        px(g, 7, 14, 1, 6, "#7a4d29");
+        px(g, 3, 4, 10, 10, "#194d29");
+        px(g, 2, 6, 12, 7, "#246b39");
+        px(g, 4, 2, 8, 5, "#338f4e");
+        px(g, 5, 3, 4, 3, "#49b368");
+      });
+      SPRITES.stone = makeSprite(16, 16, (g) => {
+        px(g, 2, 6, 12, 8, "#565e6e");
+        px(g, 3, 4, 10, 8, "#747e91");
+        px(g, 4, 5, 5, 4, "#9aa5b8");
+        px(g, 3, 12, 10, 2, "#3d434f");
+      });
+      SPRITES.herb = makeSprite(16, 16, (g) => {
+        px(g, 7, 8, 2, 6, "#2d8a4e");
+        px(g, 4, 9, 3, 2, "#3eb868");
+        px(g, 9, 8, 3, 2, "#3eb868");
+        px(g, 6, 5, 4, 4, "#6bff95");
+        px(g, 7, 6, 2, 2, "#e8fff0");
+      });
+      SPRITES.iron = makeSprite(16, 16, (g) => {
+        px(g, 2, 5, 12, 9, "#484e5c");
+        px(g, 3, 4, 10, 8, "#636b7d");
+        px(g, 4, 6, 3, 3, "#d99b66");
+        px(g, 9, 5, 3, 2, "#f0b47d");
+        px(g, 7, 9, 3, 2, "#d99b66");
+      });
+      SPRITES.crystal = makeSprite(16, 16, (g) => {
+        px(g, 6, 2, 4, 12, "#1fa8c9");
+        px(g, 7, 3, 2, 10, "#6ef7ff");
+        px(g, 3, 6, 3, 8, "#29c5e8");
+        px(g, 10, 7, 3, 7, "#29c5e8");
+        px(g, 7, 2, 1, 3, "#ffffff");
+      });
+      SPRITES.coal = makeSprite(16, 16, (g) => {
+        px(g, 2, 5, 12, 9, "#242229");
+        px(g, 4, 4, 8, 8, "#151418");
+        px(g, 5, 6, 2, 2, "#464352");
+        px(g, 9, 8, 2, 2, "#383542");
+      });
+      SPRITES.ember = makeSprite(16, 16, (g) => {
+        px(g, 6, 2, 4, 12, "#b82914");
+        px(g, 7, 3, 2, 9, "#ff7b1c");
+        px(g, 3, 6, 3, 8, "#e03e1a");
+        px(g, 10, 6, 3, 8, "#e03e1a");
+        px(g, 7, 4, 2, 3, "#ffe45e");
+      });
+      SPRITES.chest = makeSprite(16, 16, (g) => {
+        px(g, 2, 5, 12, 9, "#6e421d");
+        px(g, 3, 6, 10, 3, "#9c602b");
+        px(g, 2, 8, 12, 1, "#2b190b");
+        px(g, 7, 7, 2, 3, "#ffd43b");
+      });
+      SPRITES.chest_open = makeSprite(16, 16, (g) => {
+        px(g, 2, 7, 12, 7, "#593517");
+        px(g, 3, 4, 10, 3, "#7a4a22");
+        px(g, 3, 7, 10, 2, "#1c1007");
+      });
+
+      // Player-Built Structures
+      SPRITES.b_floor = makeSprite(16, 16, (g) => {
+        px(g, 0, 0, 16, 16, "#8c582c");
+        px(g, 0, 3, 16, 1, "#6b411e");
+        px(g, 0, 7, 16, 1, "#6b411e");
+        px(g, 0, 11, 16, 1, "#6b411e");
+        px(g, 0, 15, 16, 1, "#6b411e");
+        px(g, 7, 0, 1, 4, "#6b411e");
+        px(g, 12, 4, 1, 4, "#6b411e");
+        px(g, 4, 8, 1, 4, "#6b411e");
+      });
+      SPRITES.b_wwall = makeSprite(16, 16, (g) => {
+        px(g, 0, 0, 16, 16, "#4d2d14");
+        px(g, 1, 1, 14, 11, "#9e6332");
+        px(g, 2, 2, 12, 3, "#ba7841");
+        px(g, 1, 12, 14, 3, "#6e411d");
+      });
+      SPRITES.b_swall = makeSprite(16, 16, (g) => {
+        px(g, 0, 0, 16, 16, "#2c313d");
+        px(g, 1, 1, 6, 5, "#687287");
+        px(g, 8, 1, 7, 5, "#565f73");
+        px(g, 1, 7, 9, 5, "#565f73");
+        px(g, 11, 7, 4, 5, "#687287");
+        px(g, 1, 13, 14, 2, "#3f4654");
+      });
+      SPRITES.b_door_closed = makeSprite(16, 16, (g) => {
+        px(g, 0, 0, 16, 16, "#8c582c");
+        px(g, 1, 5, 14, 6, "#b8793d");
+        px(g, 2, 6, 12, 4, "#965e2a");
+        px(g, 11, 7, 2, 2, "#ffd43b");
+      });
+      SPRITES.b_door_open = makeSprite(16, 16, (g) => {
+        px(g, 0, 0, 16, 16, "#8c582c");
+        px(g, 1, 1, 3, 10, "#b8793d");
+        px(g, 12, 1, 3, 10, "#965e2a");
+      });
+      SPRITES.b_torch = makeSprite(16, 16, (g) => {
+        px(g, 7, 6, 2, 8, "#6e421d");
+        px(g, 6, 3, 4, 4, "#ff771c");
+        px(g, 7, 2, 2, 3, "#ffe959");
+      });
+      SPRITES.b_bed = makeSprite(16, 16, (g) => {
+        px(g, 2, 2, 12, 12, "#5c3416");
+        px(g, 3, 3, 10, 10, "#c9364a");
+        px(g, 3, 3, 10, 3, "#f2eee9");
+        px(g, 3, 6, 10, 1, "#942232");
+      });
+      SPRITES.b_turret = makeSprite(16, 16, (g) => {
+        px(g, 3, 9, 10, 5, "#4c5466");
+        px(g, 5, 5, 6, 5, "#748099");
+        px(g, 6, 1, 4, 5, "#3ce8ff");
+        px(g, 7, 2, 2, 3, "#ffffff");
+      });
+
+      // NPCs, Enemies & Boss
+      SPRITES.blacksmith = makeSprite(16, 16, (g) => {
+        px(g, 4, 13, 8, 2, "rgba(0,0,0,0.35)");
+        px(g, 5, 7, 6, 6, "#5e331e");
+        px(g, 5, 2, 6, 5, "#f0b98d");
+        px(g, 5, 1, 6, 2, "#3b2820");
+        px(g, 5, 5, 6, 2, "#3b2820");
+        px(g, 6, 3, 1, 1, "#111");
+        px(g, 9, 3, 1, 1, "#111");
+      });
+      SPRITES.hopper = makeSprite(16, 16, (g) => {
+        px(g, 3, 13, 10, 2, "rgba(0,0,0,0.35)");
+        px(g, 3, 6, 10, 7, "#36b856");
+        px(g, 4, 4, 8, 4, "#52e075");
+        px(g, 5, 7, 2, 2, "#111");
+        px(g, 9, 7, 2, 2, "#111");
+        px(g, 5, 5, 2, 1, "#b8ffca");
+      });
+      SPRITES.crawler = makeSprite(16, 16, (g) => {
+        px(g, 2, 13, 12, 2, "rgba(0,0,0,0.4)");
+        px(g, 3, 6, 10, 6, "#4d3875");
+        px(g, 4, 4, 8, 4, "#6f52a8");
+        px(g, 1, 9, 2, 4, "#32234d");
+        px(g, 13, 9, 2, 4, "#32234d");
+        px(g, 5, 7, 2, 2, "#ff3b5c");
+        px(g, 9, 7, 2, 2, "#ff3b5c");
+      });
+      SPRITES.stalker = makeSprite(16, 16, (g) => {
+        px(g, 3, 13, 10, 2, "rgba(0,0,0,0.45)");
+        px(g, 4, 4, 8, 9, "#241926");
+        px(g, 3, 2, 2, 3, "#45293b");
+        px(g, 11, 2, 2, 3, "#45293b");
+        px(g, 5, 6, 2, 2, "#ff771c");
+        px(g, 9, 6, 2, 2, "#ff771c");
+        px(g, 6, 10, 4, 2, "#ff3b1c");
+      });
+      SPRITES.boss = makeSprite(32, 32, (g) => {
+        px(g, 5, 27, 22, 4, "rgba(0,0,0,0.5)");
+        px(g, 7, 8, 18, 19, "#3d2417");
+        px(g, 9, 5, 14, 18, "#573422");
+        px(g, 3, 12, 4, 13, "#4a2c1c");
+        px(g, 25, 12, 4, 13, "#4a2c1c");
+        px(g, 10, 9, 3, 3, "#4ff2ff");
+        px(g, 19, 9, 3, 3, "#4ff2ff");
+        px(g, 13, 15, 6, 6, "#22d4e8");
+        px(g, 14, 16, 4, 4, "#ffffff");
+        px(g, 8, 2, 3, 4, "#2d8a4e");
+        px(g, 15, 1, 2, 5, "#3eb868");
+        px(g, 21, 2, 3, 4, "#2d8a4e");
+      });
+    }
+
+    buildSpriteAtlas();
+
+    /* =========================================================================
+       5. GAME STATE & WORLD GENERATOR (120x76 MULTI-BIOME WORLD)
+       ========================================================================= */
+    const state = {
+      screen: "title", // "title" | "playing" | "gameover" | "victory"
+      modal: null,     // null | "crafting" | "map" | "pause" | "dialogue"
+      dialogueText: "",
+      buildMode: false,
+      demolishMode: false,
+      quickChatOpen: false,
+      selectedBuildIdx: 0,
+      dayTime: 0.28,
+      dayCount: 1,
+      worldSeed: 133742,
+      shake: 0,
+      toastText: "",
+      toastTimer: 0,
+      gateUnlocked: false,
+      bossDefeated: false,
+      challenge: { day: 1, kind: "gather", target: 8, progress: 0, claimed: false },
+      pointerWorld: { x: 20 * TILE_SIZE, y: 40 * TILE_SIZE, active: false },
+
+      tiles: [],
+      biomes: [],
+      nodes: [],
+      structures: new Map(),
+      enemies: [],
+      projectiles: [],
+      particles: [],
+      floatTexts: [],
+      remotePlayers: new Map(), // peerId -> remote hero state
+
+      resources: {
+        wood: 6,
+        stone: 4,
+        herb: 2,
+        iron: 0,
+        crystal: 0,
+        coal: 0,
+        ember: 0
+      },
+
+      hotbar: [
+        { id: "wood_axe", count: 1 },
+        { id: "iron_pick", count: 1 },
+        { id: "potion", count: 2 },
+        null,
+        null
+      ],
+      selectedSlot: 0,
+
+      player: {
+        id: "local_" + Math.random().toString(36).slice(2, 8),
+        name: "Hero",
+        color: HERO_COLORS[0],
+        x: 20 * TILE_SIZE,
+        y: 41 * TILE_SIZE,
+        dirX: 1,
+        dirY: 0,
+        hp: 100,
+        maxHp: 100,
+        stamina: 100,
+        maxStamina: 100,
+        downed: false,
+        hasArmor: false,
+        attackCooldown: 0,
+        attackAnim: 0,
+        invuln: 0,
+        walkAnim: 0,
+        spawnX: 20 * TILE_SIZE,
+        spawnY: 41 * TILE_SIZE,
+        talkedToBran: false,
+        emoteText: "",
+        emoteTimer: 0
+      },
+
+      npc: {
+        x: 15 * TILE_SIZE,
+        y: 35 * TILE_SIZE,
+        name: "Blacksmith Bran"
+      },
+
+      camera: { x: 0, y: 0 }
+    };
+
+    function showToast(msg, duration = 2.5) {
+      state.toastText = msg;
+      state.toastTimer = duration;
+    }
+
+    const DAILY_CHALLENGES = [
+      { kind: "gather", target: 8, label: "Gather 8 resource nodes", reward: { wood: 5, herb: 3 } },
+      { kind: "slay", target: 3, label: "Defeat 3 creatures", reward: { iron: 3, crystal: 1 } },
+      { kind: "build", target: 2, label: "Build 2 structures", reward: { stone: 5, wood: 4 } }
+    ];
+
+    function resetDailyChallenge(day) {
+      const def = DAILY_CHALLENGES[(day - 1) % DAILY_CHALLENGES.length];
+      state.challenge = { day, ...def, progress: 0, claimed: false };
+    }
+
+    function advanceChallenge(kind, amount = 1) {
+      const c = state.challenge;
+      if (!c || c.kind !== kind || c.claimed) return;
+      c.progress = Math.min(c.target, c.progress + amount);
+      if (c.progress >= c.target) {
+        c.claimed = true;
+        for (const [resource, count] of Object.entries(c.reward)) {
+          state.resources[resource] = (state.resources[resource] || 0) + count;
+        }
+        sfx.play("victory");
+        showToast("Challenge complete! Reward delivered.");
+      }
+    }
+
+    function keyFor(tx, ty) {
+      return `${tx},${ty}`;
+    }
+
+    function getBiomeAt(tx, ty) {
+      if (tx < 36 && ty >= 22 && ty <= 58) return BIOME.VILLAGE;
+      if (tx >= 86) return BIOME.WASTES;
+      if (tx >= 56 && ty >= 18) return BIOME.CAVERNS;
+      return BIOME.FOREST;
+    }
+
+    function generateWorld(seedValue = 133742) {
+      state.worldSeed = seedValue;
+      state.tiles = Array.from({ length: WORLD_H }, () => new Uint8Array(WORLD_W));
+      state.biomes = Array.from({ length: WORLD_H }, () => new Uint8Array(WORLD_W));
+      state.nodes = [];
+      state.structures.clear();
+      state.enemies = [];
+      state.projectiles = [];
+      state.particles = [];
+      state.floatTexts = [];
+      state.gateUnlocked = false;
+      state.bossDefeated = false;
+
+      let seed = seedValue >>> 0;
+      const rand = () => {
+        seed = (seed * 1664525 + 1013904223) >>> 0;
+        return seed / 4294967296;
+      };
+
+      for (let y = 0; y < WORLD_H; y++) {
+        for (let x = 0; x < WORLD_W; x++) {
+          const b = getBiomeAt(x, y);
+          state.biomes[y][x] = b;
+
+          if (x === 0 || y === 0 || x === WORLD_W - 1 || y === WORLD_H - 1) {
+            state.tiles[y][x] = b === BIOME.WASTES ? TILE.OBSIDIAN_WALL : TILE.CAVERN_WALL;
+            continue;
+          }
+
+          if (b === BIOME.VILLAGE) state.tiles[y][x] = TILE.GRASS;
+          else if (b === BIOME.FOREST) state.tiles[y][x] = TILE.FOREST_GRASS;
+          else if (b === BIOME.CAVERNS) state.tiles[y][x] = TILE.CAVERN_FLOOR;
+          else state.tiles[y][x] = TILE.ASH_FLOOR;
+        }
+      }
+
+      const carveRoad = (x0, y0, x1, y1, width = 2) => {
+        let cx = x0, cy = y0;
+        while (cx !== x1 || cy !== y1) {
+          for (let oy = -Math.floor(width / 2); oy <= Math.floor(width / 2); oy++) {
+            for (let ox = -Math.floor(width / 2); ox <= Math.floor(width / 2); ox++) {
+              const tx = cx + ox, ty = cy + oy;
+              if (tx > 1 && ty > 1 && tx < WORLD_W - 2 && ty < WORLD_H - 2) {
+                state.tiles[ty][tx] = TILE.PATH;
+              }
+            }
+          }
+          if (Math.abs(x1 - cx) > Math.abs(y1 - cy)) cx += Math.sign(x1 - cx);
+          else cy += Math.sign(y1 - cy);
+        }
+      };
+
+      for (let y = 33; y <= 43; y++) {
+        for (let x = 13; x <= 23; x++) {
+          state.tiles[y][x] = TILE.PATH;
+        }
+      }
+      carveRoad(20, 33, 24, 14, 2);
+      carveRoad(23, 38, 62, 44, 2);
+      carveRoad(62, 22, 92, 22, 2);
+
+      for (let x = 8; x <= 32; x++) {
+        if (x < 19 || x > 22) state.tiles[25][x] = TILE.FENCE;
+        if (x < 19 || x > 22) state.tiles[54][x] = TILE.FENCE;
+      }
+      for (let y = 25; y <= 54; y++) {
+        state.tiles[y][8] = TILE.FENCE;
+        if (y < 36 || y > 40) state.tiles[y][32] = TILE.FENCE;
+      }
+
+      for (let y = 28; y <= 31; y++) {
+        for (let x = 25; x <= 29; x++) {
+          state.tiles[y][x] = TILE.WATER;
+        }
+      }
+
+      // Pulse Caverns Boss Sanctum & Root Gate
+      for (let y = 35; y <= 55; y++) {
+        for (let x = 78; x <= 94; x++) {
+          const isBorder = (x === 78 || x === 94 || y === 35 || y === 55);
+          if (isBorder) {
+            state.tiles[y][x] = (x === 78 && y >= 43 && y <= 45) ? TILE.ROOT_GATE : TILE.CAVERN_WALL;
+          } else {
+            state.tiles[y][x] = TILE.SANCTUM_FLOOR;
+          }
+        }
+      }
+
+      for (let y = 4; y < WORLD_H - 4; y++) {
+        for (let x = 4; x < WORLD_W - 4; x++) {
+          const t = state.tiles[y][x];
+          const b = state.biomes[y][x];
+          if (t === TILE.PATH || t === TILE.SANCTUM_FLOOR || t === TILE.ROOT_GATE) continue;
+          if (b === BIOME.CAVERNS && rand() < 0.065) state.tiles[y][x] = TILE.CAVERN_WALL;
+          else if (b === BIOME.WASTES) {
+            if (rand() < 0.055) state.tiles[y][x] = TILE.OBSIDIAN_WALL;
+            else if (rand() < 0.025) state.tiles[y][x] = TILE.LAVA;
+          }
+        }
+      }
+
+      state.nodes.push({
+        id: "village_campfire",
+        type: NODE_TYPE.CAMPFIRE,
+        tx: 18,
+        ty: 37,
+        hp: 9999,
+        maxHp: 9999,
+        light: 96
+      });
+
+      state.nodes.push({
+        id: "village_chest",
+        type: NODE_TYPE.CHEST,
+        tx: 14,
+        ty: 33,
+        hp: 1,
+        maxHp: 1,
+        opened: false,
+        loot: { wood: 8, stone: 4, herb: 3, potion: 1 },
+        label: "Village Supply Chest"
+      });
+
+      state.nodes.push({
+        id: "forest_secret_chest",
+        type: NODE_TYPE.CHEST,
+        tx: 44,
+        ty: 9,
+        hp: 1,
+        maxHp: 1,
+        opened: false,
+        loot: { wood: 10, iron: 4, crystal: 2, potion: 2 },
+        label: "Hidden Forest Stash"
+      });
+
+      const isTileClearForNode = (tx, ty) => {
+        if (tx < 2 || ty < 2 || tx >= WORLD_W - 2 || ty >= WORLD_H - 2) return false;
+        const t = state.tiles[ty][tx];
+        if (t !== TILE.GRASS && t !== TILE.FOREST_GRASS && t !== TILE.CAVERN_FLOOR && t !== TILE.ASH_FLOOR) return false;
+        if (tx >= 16 && tx <= 30 && ty >= 40 && ty <= 52) return false;
+        for (const n of state.nodes) {
+          if (Math.abs(n.tx - tx) <= 1 && Math.abs(n.ty - ty) <= 1) return false;
+        }
+        return true;
+      };
+
+      const addResourceNode = (type, tx, ty, hp) => {
+        if (!isTileClearForNode(tx, ty)) return;
+        state.nodes.push({
+          id: `${type}_${tx}_${ty}`,
+          type,
+          tx,
+          ty,
+          hp,
+          maxHp: hp,
+          hitAnim: 0
+        });
+      };
+
+      addResourceNode(NODE_TYPE.TREE, 11, 28, 30);
+      addResourceNode(NODE_TYPE.TREE, 12, 30, 30);
+      addResourceNode(NODE_TYPE.TREE, 28, 34, 30);
+      addResourceNode(NODE_TYPE.STONE, 10, 44, 36);
+      addResourceNode(NODE_TYPE.STONE, 12, 47, 36);
+      addResourceNode(NODE_TYPE.HERB, 13, 39, 12);
+      addResourceNode(NODE_TYPE.HERB, 25, 39, 12);
+
+      for (let i = 0; i < 420; i++) {
+        const tx = 2 + Math.floor(rand() * (WORLD_W - 4));
+        const ty = 2 + Math.floor(rand() * (WORLD_H - 4));
+        const b = state.biomes[ty][tx];
+
+        if (b === BIOME.VILLAGE) {
+          const r = rand();
+          if (r < 0.45) addResourceNode(NODE_TYPE.TREE, tx, ty, 30);
+          else if (r < 0.75) addResourceNode(NODE_TYPE.HERB, tx, ty, 12);
+          else addResourceNode(NODE_TYPE.STONE, tx, ty, 36);
+        } else if (b === BIOME.FOREST) {
+          const r = rand();
+          if (r < 0.56) addResourceNode(NODE_TYPE.TREE, tx, ty, 30);
+          else if (r < 0.78) addResourceNode(NODE_TYPE.HERB, tx, ty, 12);
+          else addResourceNode(NODE_TYPE.STONE, tx, ty, 36);
+        } else if (b === BIOME.CAVERNS) {
+          const r = rand();
+          if (r < 0.36) addResourceNode(NODE_TYPE.IRON, tx, ty, 45);
+          else if (r < 0.66) addResourceNode(NODE_TYPE.CRYSTAL, tx, ty, 50);
+          else if (r < 0.84) addResourceNode(NODE_TYPE.STONE, tx, ty, 36);
+          else addResourceNode(NODE_TYPE.HERB, tx, ty, 12);
+        } else if (b === BIOME.WASTES) {
+          const r = rand();
+          if (r < 0.44) addResourceNode(NODE_TYPE.COAL, tx, ty, 45);
+          else if (r < 0.82) addResourceNode(NODE_TYPE.EMBER, tx, ty, 55);
+          else addResourceNode(NODE_TYPE.IRON, tx, ty, 45);
+        }
+      }
+
+      let enemySeq = 1;
+      const spawnEnemy = (kind, tx, ty) => {
+        const cfg = {
+          hopper:  { name: "Forest Hopper", hp: 42,  dmg: 10, speed: 46, aggro: 95 },
+          crawler: { name: "Shadow Crawler",hp: 72,  dmg: 16, speed: 52, aggro: 105 },
+          stalker: { name: "Ash Stalker",   hp: 95,  dmg: 22, speed: 66, aggro: 120 },
+          boss:    { name: "Root Warden",   hp: 420, dmg: 24, speed: 38, aggro: 150, isBoss: true }
+        }[kind];
+
+        state.enemies.push({
+          id: `en_${enemySeq++}`,
+          kind,
+          name: cfg.name,
+          x: tx * TILE_SIZE + 8,
+          y: ty * TILE_SIZE + 8,
+          homeX: tx * TILE_SIZE + 8,
+          homeY: ty * TILE_SIZE + 8,
+          hp: cfg.hp,
+          maxHp: cfg.hp,
+          dmg: cfg.dmg,
+          speed: cfg.speed,
+          aggro: cfg.aggro,
+          isBoss: !!cfg.isBoss,
+          phase: 1,
+          aiTimer: rand() * 2,
+          attackTimer: 1.2,
+          hitFlash: 0
+        });
+      };
+
+      for (const [fx, fy] of [[26, 12], [35, 16], [42, 11], [48, 22], [38, 28], [50, 14], [18, 12], [31, 8]]) {
+        spawnEnemy("hopper", fx, fy);
+      }
+      for (const [cx, cy] of [[62, 26], [68, 34], [64, 52], [72, 60], [60, 44], [73, 24], [70, 48]]) {
+        spawnEnemy("crawler", cx, cy);
+      }
+      for (const [wx, wy] of [[94, 14], [104, 20], [98, 34], [108, 46], [96, 58], [106, 64], [92, 26]]) {
+        spawnEnemy("stalker", wx, wy);
+      }
+      spawnEnemy("boss", 87, 44);
+    }
+
+    /* =========================================================================
+       6. AMONG US STYLE ROOM CODE CO-OP NETWORKING (PEERJS + BROADCASTCHANNEL)
+       ========================================================================= */
+    class CoopNetwork {
+      constructor() {
+        this.mode = "solo"; // "solo" | "host" | "guest"
+        this.roomCode = "";
+        this.peer = null;
+        this.conns = new Map(); // peerId -> DataConnection
+        this.hostConn = null;
+        this.bc = null;
+        this.syncTimer = 0;
+        this.enemySyncTimer = 0;
+        this.roster = new Map(); // playerId -> { id, name, color, isHost }
+      }
+
+      generateCode() {
+        const num = Math.floor(1000 + Math.random() * 9000);
+        return `EMB-${num}`;
+      }
+
+      normalizeCode(raw) {
+        const clean = String(raw || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+        if (clean.startsWith("EMB") && clean.length >= 7) {
+          return `EMB-${clean.slice(3, 7)}`;
+        }
+        if (clean.length === 4 && /^\d{4}$/.test(clean)) {
+          return `EMB-${clean}`;
+        }
+        return raw.trim().toUpperCase();
+      }
+
+      cleanup() {
+        try {
+          for (const c of this.conns.values()) c.close();
+          if (this.hostConn) this.hostConn.close();
+          if (this.peer) this.peer.destroy();
+          if (this.bc) this.bc.close();
+        } catch (_) {}
+        this.conns.clear();
+        this.hostConn = null;
+        this.peer = null;
+        this.bc = null;
+        this.roster.clear();
+        state.remotePlayers.clear();
+      }
+
+      initBroadcastChannel() {
+        try {
+          if (typeof BroadcastChannel !== "undefined") {
+            this.bc = new BroadcastChannel("emberveil_coop_bus_v1");
+            this.bc.onmessage = (ev) => {
+              const msg = ev.data;
+              if (!msg || msg.room !== this.roomCode || msg.sender === state.player.id) return;
+              this.handlePacket(msg.packet, msg.sender, true);
+            };
+          }
+        } catch (_) {
+          this.bc = null;
+        }
+      }
+
+      startHost(heroName, heroColor, onStatus, onRosterChange) {
+        this.cleanup();
+        this.mode = "host";
+        this.roomCode = this.generateCode();
+
+        state.player.name = heroName || "HostHero";
+        state.player.color = heroColor || HERO_COLORS[0];
+        this.roster.set(state.player.id, {
+          id: state.player.id,
+          name: state.player.name,
+          color: state.player.color,
+          isHost: true
+        });
+        if (onRosterChange) onRosterChange();
+
+        this.initBroadcastChannel();
+
+        if (typeof window.Peer !== "undefined") {
+          try {
+            const peerId = `emberveil-room-${this.roomCode}`;
+            this.peer = new window.Peer(peerId);
+            this.peer.on("open", () => {
+              if (onStatus) onStatus("Online P2P + Local Tab Ready! Share code:");
+            });
+            this.peer.on("connection", (conn) => {
+              this.bindHostConnection(conn, onRosterChange);
+            });
+            this.peer.on("error", () => {
+              if (onStatus) onStatus("Local Tab Co-op Ready (Offline P2P fallback):");
+            });
+          } catch (_) {
+            if (onStatus) onStatus("Local Tab Co-op Ready:");
+          }
+        } else {
+          if (onStatus) onStatus("Room Ready! Share code with friend:");
+        }
+        return this.roomCode;
+      }
+
+      bindHostConnection(conn, onRosterChange) {
+        conn.on("open", () => {
+          this.conns.set(conn.peer, conn);
+          // Send current roster and if already playing, full world snapshot
+          conn.send({
+            type: "ROSTER_SYNC",
+            roster: Array.from(this.roster.values())
+          });
+          if (state.screen === "playing") {
+            conn.send(this.buildWorldSnapshot());
+          }
+        });
+        conn.on("data", (packet) => {
+          this.handlePacket(packet, conn.peer, false, onRosterChange);
+          // Relay packet to other guests
+          for (const [pid, other] of this.conns.entries()) {
+            if (pid !== conn.peer && other.open) {
+              try { other.send(packet); } catch (_) {}
+            }
+          }
+        });
+        conn.on("close", () => {
+          this.conns.delete(conn.peer);
+          if (conn.heroId) {
+            this.roster.delete(conn.heroId);
+            state.remotePlayers.delete(conn.heroId);
+            this.broadcast({ type: "ROSTER_SYNC", roster: Array.from(this.roster.values()) });
+            if (onRosterChange) onRosterChange();
+          }
+        });
+      }
+
+      joinRoom(rawCode, heroName, heroColor, onStatus, onConnected) {
+        this.cleanup();
+        const code = this.normalizeCode(rawCode);
+        if (!code || code.length < 4) {
+          if (onStatus) onStatus("Please enter a valid code like EMB-4829.");
+          return;
+        }
+        this.mode = "guest";
+        this.roomCode = code;
+        state.player.name = heroName || "AllyHero";
+        state.player.color = heroColor || HERO_COLORS[1];
+
+        this.initBroadcastChannel();
+
+        // Announce join via BroadcastChannel immediately for same-browser tabs
+        this.send({
+          type: "HELLO",
+          hero: {
+            id: state.player.id,
+            name: state.player.name,
+            color: state.player.color,
+            isHost: false
+          }
+        });
+
+        if (typeof window.Peer !== "undefined") {
+          try {
+            if (onStatus) onStatus(`Connecting to ${code}...`);
+            this.peer = new window.Peer();
+            this.peer.on("open", () => {
+              const targetPeerId = `emberveil-room-${code}`;
+              const conn = this.peer.connect(targetPeerId, { reliable: true });
+              this.hostConn = conn;
+              conn.on("open", () => {
+                if (onStatus) onStatus(`Connected to ${code}! Waiting for Host to start...`);
+                conn.send({
+                  type: "HELLO",
+                  hero: {
+                    id: state.player.id,
+                    name: state.player.name,
+                    color: state.player.color,
+                    isHost: false
+                  }
+                });
+                if (onConnected) onConnected();
+              });
+              conn.on("data", (packet) => {
+                this.handlePacket(packet, "host", false);
+              });
+              conn.on("error", () => {
+                if (onStatus) onStatus(`Searching ${code} (check code or same-browser tab)...`);
+              });
+            });
+            this.peer.on("error", () => {
+              if (onStatus) onStatus(`Could not reach ${code} via WebRTC; listening on local tab...`);
+            });
+          } catch (_) {}
+        } else {
+          if (onStatus) onStatus(`Listening for ${code}...`);
+        }
+      }
+
+      send(packet) {
+        if (this.mode === "solo") return;
+        if (this.bc) {
+          try {
+            this.bc.postMessage({ room: this.roomCode, sender: state.player.id, packet });
+          } catch (_) {}
+        }
+        if (this.mode === "host") {
+          for (const conn of this.conns.values()) {
+            if (conn.open) {
+              try { conn.send(packet); } catch (_) {}
+            }
+          }
+        } else if (this.mode === "guest" && this.hostConn && this.hostConn.open) {
+          try { this.hostConn.send(packet); } catch (_) {}
+        }
+      }
+
+      broadcast(packet) {
+        this.send(packet);
+      }
+
+      buildWorldSnapshot() {
+        return {
+          type: "WORLD_INIT",
+          seed: state.worldSeed,
+          dayTime: state.dayTime,
+          dayCount: state.dayCount,
+          gateUnlocked: state.gateUnlocked,
+          bossDefeated: state.bossDefeated,
+          aliveNodeIds: state.nodes.map(n => n.id),
+          openedChests: state.nodes.filter(n => n.type === NODE_TYPE.CHEST && n.opened).map(n => n.id),
+          structures: Array.from(state.structures.entries()),
+          enemies: state.enemies.map(e => ({
+            id: e.id, kind: e.kind, x: e.x, y: e.y, hp: e.hp, maxHp: e.maxHp, phase: e.phase
+          }))
+        };
+      }
+
+      applyWorldSnapshot(snap) {
+        hideAllOverlays();
+        setupFreshPlayer(false);
+        generateWorld(snap.seed || 133742);
+        state.dayTime = snap.dayTime ?? 0.28;
+        state.dayCount = snap.dayCount ?? 1;
+        resetDailyChallenge(state.dayCount);
+        state.gateUnlocked = !!snap.gateUnlocked;
+        state.bossDefeated = !!snap.bossDefeated;
+
+        if (state.gateUnlocked) {
+          for (let gy = 43; gy <= 45; gy++) state.tiles[gy][78] = TILE.ROOT_GATE_OPEN;
+        }
+        if (Array.isArray(snap.aliveNodeIds)) {
+          const aliveSet = new Set(snap.aliveNodeIds);
+          state.nodes = state.nodes.filter(n => aliveSet.has(n.id));
+        }
+        if (Array.isArray(snap.openedChests)) {
+          const openSet = new Set(snap.openedChests);
+          for (const n of state.nodes) {
+            if (openSet.has(n.id)) n.opened = true;
+          }
+        }
+        if (Array.isArray(snap.structures)) {
+          state.structures = new Map(snap.structures);
+        }
+        if (Array.isArray(snap.enemies)) {
+          const mapE = new Map(snap.enemies.map(e => [e.id, e]));
+          state.enemies = state.enemies.filter(e => mapE.has(e.id));
+          for (const e of state.enemies) {
+            const s = mapE.get(e.id);
+            e.x = s.x; e.y = s.y; e.hp = s.hp; e.phase = s.phase;
+          }
+        }
+        // Offset guest slightly so heroes don't overlap on spawn
+        state.player.x = 21.5 * TILE_SIZE;
+        state.player.y = 41.5 * TILE_SIZE;
+        state.screen = "playing";
+        showToast(`Joined Co-op Room ${this.roomCode}!`);
+      }
+
+      handlePacket(packet, senderPeerId, fromBroadcast, onRosterChange) {
+        if (!packet || !packet.type) return;
+
+        switch (packet.type) {
+          case "HELLO": {
+            const h = packet.hero;
+            if (!h) return;
+            this.roster.set(h.id, h);
+            if (!fromBroadcast && this.conns.has(senderPeerId)) {
+              this.conns.get(senderPeerId).heroId = h.id;
+            }
+            if (this.mode === "host") {
+              this.broadcast({ type: "ROSTER_SYNC", roster: Array.from(this.roster.values()) });
+              if (state.screen === "playing") {
+                this.broadcast(this.buildWorldSnapshot());
+              }
+            }
+            renderLobbyRoster();
+            if (onRosterChange) onRosterChange();
+            break;
+          }
+          case "ROSTER_SYNC": {
+            this.roster.clear();
+            for (const h of packet.roster || []) {
+              this.roster.set(h.id, h);
+            }
+            const joinSt = document.getElementById("joinStatusText");
+            if (joinSt && this.mode === "guest") {
+              joinSt.textContent = `Connected to ${this.roomCode}! (${this.roster.size} heroes in lobby)`;
+            }
+            renderLobbyRoster();
+            break;
+          }
+          case "WORLD_INIT": {
+            if (this.mode === "guest") {
+              this.applyWorldSnapshot(packet);
+            }
+            break;
+          }
+          case "PLAYER_STATE": {
+            const d = packet.data;
+            if (!d || d.id === state.player.id) return;
+            let rp = state.remotePlayers.get(d.id);
+            if (!rp) {
+              rp = { ...d, targetX: d.x, targetY: d.y };
+              state.remotePlayers.set(d.id, rp);
+              showToast(`${d.name} joined your adventure!`);
+            } else {
+              rp.name = d.name;
+              rp.color = d.color;
+              rp.targetX = d.x;
+              rp.targetY = d.y;
+              rp.dirX = d.dirX;
+              rp.dirY = d.dirY;
+              rp.walkAnim = d.walkAnim;
+              rp.hp = d.hp;
+              rp.maxHp = d.maxHp;
+              rp.downed = d.downed;
+              rp.toolId = d.toolId;
+              rp.attackAnim = d.attackAnim;
+              rp.hasArmor = d.hasArmor;
+              if (d.emoteTimer > 0) {
+                rp.emoteText = d.emoteText;
+                rp.emoteTimer = d.emoteTimer;
+              }
+            }
+            break;
+          }
+          case "NODE_UPDATE": {
+            if (packet.removed) {
+              state.nodes = state.nodes.filter(n => n.id !== packet.nodeId);
+            } else if (packet.chestOpened) {
+              const c = state.nodes.find(n => n.id === packet.nodeId);
+              if (c) c.opened = true;
+            }
+            break;
+          }
+          case "STRUCT_UPDATE": {
+            if (packet.action === "place" && packet.struct) {
+              state.structures.set(keyFor(packet.struct.tx, packet.struct.ty), packet.struct);
+              spawnParticles(packet.struct.tx * TILE_SIZE + 8, packet.struct.ty * TILE_SIZE + 8, "#ffd479", 8, 35);
+            } else if (packet.action === "remove") {
+              state.structures.delete(keyFor(packet.tx, packet.ty));
+            }
+            break;
+          }
+          case "GATE_OPEN": {
+            if (!state.gateUnlocked) {
+              state.gateUnlocked = true;
+              for (let gy = 43; gy <= 45; gy++) state.tiles[gy][78] = TILE.ROOT_GATE_OPEN;
+              sfx.play("gate");
+              showToast("Teammate unlocked the Root Gate!");
+            }
+            break;
+          }
+          case "ENEMY_DAMAGE": {
+            const en = state.enemies.find(e => e.id === packet.enemyId);
+            if (en && en.hp > 0) {
+              applyEnemyDamageLocal(en, packet.dmg, packet.kx || 0, packet.ky || 0, false);
+            }
+            break;
+          }
+          case "ENEMY_SYNC": {
+            if (this.mode === "guest" && Array.isArray(packet.list)) {
+              const incoming = new Map(packet.list.map(item => [item.id, item]));
+              state.enemies = state.enemies.filter(e => incoming.has(e.id));
+              for (const e of state.enemies) {
+                const s = incoming.get(e.id);
+                e.x += (s.x - e.x) * 0.45;
+                e.y += (s.y - e.y) * 0.45;
+                e.hp = s.hp;
+                e.phase = s.phase;
+              }
+              if (packet.bossDefeated && !state.bossDefeated) {
+                state.bossDefeated = true;
+                sfx.play("victory");
+                state.screen = "victory";
+              }
+            }
+            break;
+          }
+          case "PROJECTILE_SPAWN": {
+            if (packet.proj) {
+              state.projectiles.push({ ...packet.proj, hitIds: new Set() });
+            }
+            break;
+          }
+          case "QUICK_CHAT": {
+            const rp = state.remotePlayers.get(packet.id);
+            if (rp) {
+              rp.emoteText = packet.text;
+              rp.emoteTimer = 3.8;
+              sfx.play("chat");
+            }
+            break;
+          }
+          case "REVIVE_TARGET": {
+            if (packet.targetId === state.player.id && state.player.downed) {
+              state.player.downed = false;
+              state.player.hp = Math.round(state.player.maxHp * 0.5);
+              state.player.invuln = 2.0;
+              sfx.play("revive");
+              spawnParticles(state.player.x, state.player.y, "#5eff8c", 18, 48);
+              showToast(`${packet.byName} revived you!`);
+            }
+            break;
+          }
+        }
+      }
+
+      update(dt) {
+        if (this.mode === "solo") return;
+
+        // Interpolate remote players smoothly
+        for (const rp of state.remotePlayers.values()) {
+          rp.x += (rp.targetX - rp.x) * Math.min(1, dt * 16);
+          rp.y += (rp.targetY - rp.y) * Math.min(1, dt * 16);
+          if (rp.attackAnim > 0) rp.attackAnim = Math.max(0, rp.attackAnim - dt);
+          if (rp.emoteTimer > 0) rp.emoteTimer = Math.max(0, rp.emoteTimer - dt);
+        }
+
+        // Send local player state at 20 Hz
+        this.syncTimer -= dt;
+        if (this.syncTimer <= 0) {
+          this.syncTimer = 0.05;
+          const p = state.player;
+          const curSlot = state.hotbar[state.selectedSlot];
+          this.send({
+            type: "PLAYER_STATE",
+            data: {
+              id: p.id,
+              name: p.name,
+              color: p.color,
+              x: Math.round(p.x * 10) / 10,
+              y: Math.round(p.y * 10) / 10,
+              dirX: p.dirX,
+              dirY: p.dirY,
+              walkAnim: p.walkAnim,
+              hp: p.hp,
+              maxHp: p.maxHp,
+              downed: p.downed,
+              toolId: curSlot ? curSlot.id : "wood_axe",
+              attackAnim: p.attackAnim,
+              hasArmor: p.hasArmor,
+              emoteText: p.emoteText,
+              emoteTimer: p.emoteTimer
+            }
+          });
+        }
+
+        // Host broadcasts authoritative enemy states every 110ms
+        if (this.mode === "host") {
+          this.enemySyncTimer -= dt;
+          if (this.enemySyncTimer <= 0) {
+            this.enemySyncTimer = 0.11;
+            this.broadcast({
+              type: "ENEMY_SYNC",
+              bossDefeated: state.bossDefeated,
+              list: state.enemies.map(e => ({
+                id: e.id,
+                x: Math.round(e.x),
+                y: Math.round(e.y),
+                hp: e.hp,
+                phase: e.phase
+              }))
+            });
+          }
+        }
+      }
+    }
+
+    const net = new CoopNetwork();
+
+    /* =========================================================================
+       7. LOBBY HTML OVERLAY HANDLERS
+       ========================================================================= */
+    const titleOverlay = document.getElementById("titleOverlay");
+    const createOverlay = document.getElementById("createOverlay");
+    const joinOverlay = document.getElementById("joinOverlay");
+
+    function hideAllOverlays() {
+      titleOverlay.classList.add("hidden");
+      createOverlay.classList.add("hidden");
+      joinOverlay.classList.add("hidden");
+    }
+
+    function renderColorSwatches(containerId, initialColor, onPick) {
+      const box = document.getElementById(containerId);
+      box.innerHTML = "";
+      HERO_COLORS.forEach((col) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "swatch" + (col === initialColor ? " active" : "");
+        btn.style.background = col;
+        btn.addEventListener("click", () => {
+          Array.from(box.children).forEach(c => c.classList.remove("active"));
+          btn.classList.add("active");
+          onPick(col);
+        });
+        box.appendChild(btn);
+      });
+    }
+
+    function renderLobbyRoster() {
+      const list = document.getElementById("hostPlayerList");
+      if (!list) return;
+      list.innerHTML = "";
+      for (const h of net.roster.values()) {
+        const row = document.createElement("div");
+        row.className = "player-entry";
+        row.innerHTML = `
+          <span><strong style="color:${h.color}">■</strong> ${h.name}</span>
+          <span style="color:#7aff9e;font-size:11px;">${h.isHost ? "HOST" : "READY"}</span>
+        `;
+        list.appendChild(row);
+      }
+    }
+
+    function setupFreshPlayer(preserveIdentity = true) {
+      const keepName = preserveIdentity ? state.player.name : "Hero";
+      const keepColor = preserveIdentity ? state.player.color : HERO_COLORS[0];
+      const keepId = state.player.id;
+
+      state.resources = { wood: 6, stone: 4, herb: 2, iron: 0, crystal: 0, coal: 0, ember: 0 };
+      state.hotbar = [
+        { id: "wood_axe", count: 1 },
+        { id: "iron_pick", count: 1 },
+        { id: "potion", count: 2 },
+        null,
+        null
+      ];
+      state.selectedSlot = 0;
+      state.player = {
+        id: keepId,
+        name: keepName,
+        color: keepColor,
+        x: 20 * TILE_SIZE,
+        y: 41 * TILE_SIZE,
+        dirX: 1,
+        dirY: 0,
+        hp: 100,
+        maxHp: 100,
+        stamina: 100,
+        maxStamina: 100,
+        downed: false,
+        hasArmor: false,
+        attackCooldown: 0,
+        attackAnim: 0,
+        invuln: 0,
+        walkAnim: 0,
+        spawnX: 20 * TILE_SIZE,
+        spawnY: 41 * TILE_SIZE,
+        talkedToBran: false,
+        emoteText: "",
+        emoteTimer: 0
+      };
+      state.dayTime = 0.28;
+      state.dayCount = 1;
+      resetDailyChallenge(1);
+      state.buildMode = false;
+      state.demolishMode = false;
+      state.quickChatOpen = false;
+      state.modal = null;
+    }
+
+    function startSoloGame() {
+      sfx.init();
+      net.cleanup();
+      net.mode = "solo";
+      hideAllOverlays();
+      setupFreshPlayer(false);
+      generateWorld(133742);
+      state.screen = "playing";
+      showToast("Welcome to Emberhollow! Explore, build & forge the Crystal Blade.");
+    }
+
+    document.getElementById("btnSolo").addEventListener("click", startSoloGame);
+
+    document.getElementById("btnCreateOpen").addEventListener("click", () => {
+      sfx.init();
+      hideAllOverlays();
+      createOverlay.classList.remove("hidden");
+      const nameInput = document.getElementById("hostNameInput");
+      const code = net.startHost(
+        nameInput.value.trim() || "HostHero",
+        state.player.color,
+        (status) => { document.getElementById("hostStatusText").textContent = status; },
+        renderLobbyRoster
+      );
+      document.getElementById("hostRoomCode").textContent = code;
+      renderColorSwatches("hostSwatches", state.player.color, (col) => {
+        state.player.color = col;
+        const me = net.roster.get(state.player.id);
+        if (me) {
+          me.color = col;
+          net.broadcast({ type: "ROSTER_SYNC", roster: Array.from(net.roster.values()) });
+          renderLobbyRoster();
+        }
+      });
+    });
+
+    document.getElementById("hostNameInput").addEventListener("input", (e) => {
+      state.player.name = e.target.value.trim() || "HostHero";
+      const me = net.roster.get(state.player.id);
+      if (me) {
+        me.name = state.player.name;
+        net.broadcast({ type: "ROSTER_SYNC", roster: Array.from(net.roster.values()) });
+        renderLobbyRoster();
+      }
+    });
+
+    document.getElementById("btnCopyCode").addEventListener("click", () => {
+      const code = document.getElementById("hostRoomCode").textContent;
+      const copyBtn = document.getElementById("btnCopyCode");
+      try {
+        const tmp = document.createElement("textarea");
+        tmp.value = code;
+        tmp.style.position = "fixed";
+        tmp.style.opacity = "0";
+        document.body.appendChild(tmp);
+        tmp.select();
+        document.execCommand("copy");
+        document.body.removeChild(tmp);
+        copyBtn.textContent = "✓ COPIED!";
+        setTimeout(() => { copyBtn.textContent = "📋 COPY CODE"; }, 1800);
+      } catch (_) {}
+      sfx.play("chat");
+    });
+
+    document.getElementById("btnStartCoop").addEventListener("click", () => {
+      sfx.init();
+      hideAllOverlays();
+      setupFreshPlayer(true);
+      const randomSeed = Math.floor(100000 + Math.random() * 899999);
+      generateWorld(randomSeed);
+      state.screen = "playing";
+      net.broadcast(net.buildWorldSnapshot());
+      showToast(`Co-op Room ${net.roomCode} started!`);
+    });
+
+    document.getElementById("btnHostBack").addEventListener("click", () => {
+      net.cleanup();
+      hideAllOverlays();
+      titleOverlay.classList.remove("hidden");
+    });
+
+    document.getElementById("btnJoinOpen").addEventListener("click", () => {
+      sfx.init();
+      hideAllOverlays();
+      joinOverlay.classList.remove("hidden");
+      state.player.color = HERO_COLORS[1];
+      renderColorSwatches("guestSwatches", state.player.color, (col) => {
+        state.player.color = col;
+      });
+    });
+
+    document.getElementById("btnJoinConnect").addEventListener("click", () => {
+      sfx.init();
+      const rawCode = document.getElementById("joinCodeInput").value;
+      const heroName = document.getElementById("guestNameInput").value.trim() || "AllyHero";
+      net.joinRoom(
+        rawCode,
+        heroName,
+        state.player.color,
+        (status) => { document.getElementById("joinStatusText").textContent = status; },
+        null
+      );
+    });
+
+    document.getElementById("btnJoinBack").addEventListener("click", () => {
+      net.cleanup();
+      hideAllOverlays();
+      titleOverlay.classList.remove("hidden");
+    });
+
+    function saveGame() {
+      try {
+        const data = {
+          resources: state.resources,
+          hotbar: state.hotbar,
+          selectedSlot: state.selectedSlot,
+          player: state.player,
+          dayTime: state.dayTime,
+          dayCount: state.dayCount,
+          gateUnlocked: state.gateUnlocked,
+          bossDefeated: state.bossDefeated,
+          challenge: state.challenge,
+          structures: Array.from(state.structures.entries()),
+          openedChests: state.nodes.filter(n => n.type === NODE_TYPE.CHEST && n.opened).map(n => n.id)
+        };
+        localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+        sfx.play("craft");
+        showToast("Progress Saved!");
+      } catch (_) {
+        showToast("Save unavailable in sandbox mode.");
+      }
+    }
+
+    /* =========================================================================
+       8. COLLISION & MOVEMENT HELPERS
+       ========================================================================= */
+    function isTileSolidFor(tx, ty, isPlayer) {
+      if (tx < 0 || ty < 0 || tx >= WORLD_W || ty >= WORLD_H) return true;
+      const t = state.tiles[ty][tx];
+      if (
+        t === TILE.CAVERN_WALL ||
+        t === TILE.OBSIDIAN_WALL ||
+        t === TILE.WATER ||
+        t === TILE.LAVA ||
+        t === TILE.FENCE ||
+        t === TILE.ROOT_GATE
+      ) {
+        return true;
+      }
+
+      const st = state.structures.get(keyFor(tx, ty));
+      if (st) {
+        if (st.isDoor) return !isPlayer;
+        if (st.solid) return true;
+      }
+
+      for (const n of state.nodes) {
+        if (n.tx === tx && n.ty === ty && n.type !== NODE_TYPE.HERB && n.type !== NODE_TYPE.CAMPFIRE) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function moveWithCollision(ent, dx, dy, halfW, halfH, isPlayer) {
+      if (dx !== 0) {
+        const nx = ent.x + dx;
+        const left = Math.floor((nx - halfW) / TILE_SIZE);
+        const right = Math.floor((nx + halfW) / TILE_SIZE);
+        const top = Math.floor((ent.y - halfH) / TILE_SIZE);
+        const bottom = Math.floor((ent.y + halfH) / TILE_SIZE);
+        let blocked = false;
+        for (let ty = top; ty <= bottom; ty++) {
+          for (let tx = left; tx <= right; tx++) {
+            if (isTileSolidFor(tx, ty, isPlayer)) {
+              blocked = true;
+              break;
+            }
+          }
+          if (blocked) break;
+        }
+        if (!blocked) ent.x = nx;
+      }
+
+      if (dy !== 0) {
+        const ny = ent.y + dy;
+        const left = Math.floor((ent.x - halfW) / TILE_SIZE);
+        const right = Math.floor((ent.x + halfW) / TILE_SIZE);
+        const top = Math.floor((ny - halfH) / TILE_SIZE);
+        const bottom = Math.floor((ny + halfH) / TILE_SIZE);
+        let blocked = false;
+        for (let ty = top; ty <= bottom; ty++) {
+          for (let tx = left; tx <= right; tx++) {
+            if (isTileSolidFor(tx, ty, isPlayer)) {
+              blocked = true;
+              break;
+            }
+          }
+          if (blocked) break;
+        }
+        if (!blocked) ent.y = ny;
+      }
+    }
+
+    function ensurePlayerNotStuck() {
+      const p = state.player;
+      const ptx = Math.floor(p.x / TILE_SIZE);
+      const pty = Math.floor(p.y / TILE_SIZE);
+      if (!isTileSolidFor(ptx, pty, true)) return;
+      for (let r = 1; r <= 4; r++) {
+        for (let dy = -r; dy <= r; dy++) {
+          for (let dx = -r; dx <= r; dx++) {
+            if (!isTileSolidFor(ptx + dx, pty + dy, true)) {
+              p.x = (ptx + dx) * TILE_SIZE + 8;
+              p.y = (pty + dy) * TILE_SIZE + 8;
+              return;
+            }
+          }
+        }
+      }
+    }
+
+    /* =========================================================================
+       9. COMBAT, GATHERING, CO-OP REVIVE, QUICK CHAT & HOUSE BUILDING
+       ========================================================================= */
+    function addFloatText(x, y, text, color = "#ffffff") {
+      state.floatTexts.push({ x, y, text, color, life: 0.95 });
+    }
+
+    function spawnParticles(x, y, color, count = 8, speed = 48) {
+      for (let i = 0; i < count; i++) {
+        const ang = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.6;
+        const spd = speed * (0.45 + Math.random() * 0.75);
+        state.particles.push({
+          x,
+          y,
+          vx: Math.cos(ang) * spd,
+          vy: Math.sin(ang) * spd,
+          color,
+          size: Math.random() < 0.4 ? 2 : 1,
+          life: 0.28 + Math.random() * 0.25
+        });
+      }
+    }
+
+    function hasResources(cost) {
+      for (const [res, amt] of Object.entries(cost)) {
+        if ((state.resources[res] || 0) < amt) return false;
+      }
+      return true;
+    }
+
+    function spendResources(cost) {
+      for (const [res, amt] of Object.entries(cost)) {
+        state.resources[res] = Math.max(0, (state.resources[res] || 0) - amt);
+      }
+    }
+
+    function giveItemToHotbar(itemId, count = 1) {
+      if (itemId === "potion") {
+        for (let i = 0; i < state.hotbar.length; i++) {
+          if (state.hotbar[i] && state.hotbar[i].id === "potion") {
+            state.hotbar[i].count += count;
+            return;
+          }
+        }
+      }
+      for (let i = 0; i < state.hotbar.length; i++) {
+        if (state.hotbar[i] && state.hotbar[i].id === itemId) return;
+      }
+      for (let i = 0; i < state.hotbar.length; i++) {
+        if (!state.hotbar[i]) {
+          state.hotbar[i] = { id: itemId, count };
+          state.selectedSlot = i;
+          return;
+        }
+      }
+      const target = state.hotbar[state.selectedSlot]?.id !== "potion" ? state.selectedSlot : 3;
+      state.hotbar[target] = { id: itemId, count };
+      state.selectedSlot = target;
+    }
+
+    function playerHasItem(itemId) {
+      return state.hotbar.some(slot => slot && slot.id === itemId);
+    }
+
+    function sendQuickChat(text) {
+      state.player.emoteText = text;
+      state.player.emoteTimer = 3.8;
+      state.quickChatOpen = false;
+      sfx.play("chat");
+      net.send({ type: "QUICK_CHAT", id: state.player.id, text });
+    }
+
+    function drinkPotion() {
+      const p = state.player;
+      if (p.downed) {
+        showToast("You are downed! Wait for a teammate to revive you.");
+        return;
+      }
+      if (p.hp >= p.maxHp) {
+        showToast("Health is already full!");
+        return;
+      }
+      const idx = state.hotbar.findIndex(s => s && s.id === "potion" && s.count > 0);
+      if (idx === -1) {
+        showToast("No Health Potions! Craft one with 2 Herb + 1 Wood.");
+        return;
+      }
+      state.hotbar[idx].count -= 1;
+      if (state.hotbar[idx].count <= 0) state.hotbar[idx] = null;
+
+      const healed = Math.min(p.maxHp - p.hp, 50);
+      p.hp += healed;
+      sfx.play("potion");
+      spawnParticles(p.x, p.y, "#4fff88", 12, 42);
+      addFloatText(p.x, p.y - 10, `+${healed} HP`, "#4fff88");
+    }
+
+    function applyEnemyDamageLocal(enemy, dmg, knockX, knockY, broadcastHit = true) {
+      enemy.hp -= dmg;
+      enemy.hitFlash = 0.14;
+      sfx.play("hit");
+      state.shake = Math.max(state.shake, enemy.isBoss ? 3.5 : 2.0);
+      spawnParticles(enemy.x, enemy.y, "#ff5566", 7, 52);
+      addFloatText(enemy.x, enemy.y - 10, `-${dmg}`, "#ffcf4d");
+
+      if (broadcastHit) {
+        net.send({ type: "ENEMY_DAMAGE", enemyId: enemy.id, dmg, kx: knockX, ky: knockY });
+      }
+
+      if (!enemy.isBoss) {
+        moveWithCollision(enemy, knockX * 8, knockY * 8, 5, 5, false);
+      }
+
+      if (enemy.hp <= 0) {
+        if (!enemy.isBoss) advanceChallenge("slay");
+        spawnParticles(enemy.x, enemy.y, "#ff9933", enemy.isBoss ? 28 : 14, 72);
+        if (enemy.kind === "hopper") {
+          state.resources.herb += 2;
+          state.resources.wood += 1;
+          addFloatText(enemy.x, enemy.y - 16, "+2 Herb +1 Wood", "#7aff9e");
+        } else if (enemy.kind === "crawler") {
+          state.resources.iron += 2;
+          state.resources.crystal += 1;
+          addFloatText(enemy.x, enemy.y - 16, "+2 Iron +1 Crystal", "#78f0ff");
+        } else if (enemy.kind === "stalker") {
+          state.resources.ember += 2;
+          state.resources.coal += 2;
+          addFloatText(enemy.x, enemy.y - 16, "+2 Ember +2 Coal", "#ff9e44");
+        } else if (enemy.isBoss) {
+          state.bossDefeated = true;
+          state.resources.ember += 6;
+          state.resources.crystal += 6;
+          sfx.play("victory");
+          state.screen = "victory";
+        }
+      }
+    }
+
+    function harvestNode(node, power) {
+      if (node.type === NODE_TYPE.CAMPFIRE) return;
+      if (node.type === NODE_TYPE.CHEST) {
+        openChest(node);
+        return;
+      }
+      node.hp -= power;
+      node.hitAnim = 0.16;
+      sfx.play("gather");
+      const nx = node.tx * TILE_SIZE + 8;
+      const ny = node.ty * TILE_SIZE + 8;
+
+      const colorMap = {
+        tree: "#69b856",
+        stone: "#9aa5b8",
+        herb: "#5eff8c",
+        iron: "#f0b47d",
+        crystal: "#5ef7ff",
+        coal: "#6e6a80",
+        ember: "#ff8c2b"
+      };
+      spawnParticles(nx, ny, colorMap[node.type] || "#fff", 6, 36);
+
+      if (node.hp <= 0) {
+        const yieldMap = {
+          tree:    { key: "wood",    amt: 3, label: "+3 Wood",    col: "#cfa063" },
+          stone:   { key: "stone",   amt: 3, label: "+3 Stone",   col: "#b8c4d9" },
+          herb:    { key: "herb",    amt: 2, label: "+2 Herb",    col: "#6bff95" },
+          iron:    { key: "iron",    amt: 2, label: "+2 Iron",    col: "#f5ba84" },
+          crystal: { key: "crystal", amt: 2, label: "+2 Crystal", col: "#6ef7ff" },
+          coal:    { key: "coal",    amt: 2, label: "+2 Coal",    col: "#b8b4c7" },
+          ember:   { key: "ember",   amt: 2, label: "+2 Ember",   col: "#ff993b" }
+        };
+        const yInfo = yieldMap[node.type];
+        if (yInfo) {
+          advanceChallenge("gather");
+          state.resources[yInfo.key] += yInfo.amt;
+          addFloatText(nx, ny - 8, yInfo.label, yInfo.col);
+        }
+        state.nodes = state.nodes.filter(n => n !== node);
+        net.send({ type: "NODE_UPDATE", nodeId: node.id, removed: true });
+      }
+    }
+
+    function openChest(chest) {
+      if (chest.opened) {
+        showToast("Chest is already empty.");
+        return;
+      }
+      chest.opened = true;
+      net.send({ type: "NODE_UPDATE", nodeId: chest.id, chestOpened: true });
+      sfx.play("craft");
+      const cx = chest.tx * TILE_SIZE + 8;
+      const cy = chest.ty * TILE_SIZE + 8;
+      spawnParticles(cx, cy, "#ffd43b", 16, 55);
+
+      const parts = [];
+      for (const [k, v] of Object.entries(chest.loot)) {
+        if (k === "potion") {
+          giveItemToHotbar("potion", v);
+          parts.push(`+${v} Potion`);
+        } else {
+          state.resources[k] = (state.resources[k] || 0) + v;
+          parts.push(`+${v} ${k[0].toUpperCase() + k.slice(1)}`);
+        }
+      }
+      addFloatText(cx, cy - 10, parts.join(" "), "#ffd43b");
+      showToast(`${chest.label}: ${parts.join(", ")}`);
+    }
+
+    function performAttack() {
+      const p = state.player;
+      if (p.downed || p.attackCooldown > 0) return;
+
+      const slot = state.hotbar[state.selectedSlot];
+      const item = slot ? ITEM_DEFS[slot.id] : ITEM_DEFS.wood_axe;
+
+      if (item.type === "consumable") {
+        drinkPotion();
+        return;
+      }
+
+      p.attackCooldown = item.cooldown;
+      p.attackAnim = 0.18;
+
+      if (item.type === "bow") {
+        sfx.play("bow");
+        const proj = {
+          fromPlayer: true,
+          kind: "arrow",
+          x: p.x + p.dirX * 8,
+          y: p.y + p.dirY * 8,
+          vx: p.dirX * 225,
+          vy: p.dirY * 225,
+          dmg: item.dmg,
+          life: 0.78,
+          color: "#ffe47a"
+        };
+        state.projectiles.push(proj);
+        net.send({ type: "PROJECTILE_SPAWN", proj });
+        return;
+      }
+
+      sfx.play(item.shootsWave ? "ember" : "swing");
+      if (item.shootsWave) {
+        const wave = {
+          fromPlayer: true,
+          kind: "ember_wave",
+          x: p.x + p.dirX * 10,
+          y: p.y + p.dirY * 10,
+          vx: p.dirX * 175,
+          vy: p.dirY * 175,
+          dmg: 38,
+          life: 0.65,
+          pierce: true,
+          hitIds: new Set(),
+          color: "#ff7722"
+        };
+        state.projectiles.push(wave);
+        net.send({ type: "PROJECTILE_SPAWN", proj: { ...wave, hitIds: undefined } });
+      }
+
+      const reach = item.range;
+      const hitX = p.x + p.dirX * (reach * 0.65);
+      const hitY = p.y + p.dirY * (reach * 0.65);
+
+      for (const e of state.enemies) {
+        if (e.hp <= 0) continue;
+        const rad = e.isBoss ? 18 : 11;
+        if (Math.hypot(e.x - hitX, e.y - hitY) <= reach * 0.75 + rad) {
+          applyEnemyDamageLocal(e, item.dmg, p.dirX, p.dirY, true);
+        }
+      }
+      state.enemies = state.enemies.filter(e => e.hp > 0);
+
+      for (const n of [...state.nodes]) {
+        const nx = n.tx * TILE_SIZE + 8;
+        const ny = n.ty * TILE_SIZE + 8;
+        if (Math.hypot(nx - hitX, ny - hitY) <= reach * 0.78 + 8) {
+          const mult = n.type === NODE_TYPE.TREE ? (item.chopMult || 1) : (item.mineMult || 1);
+          harvestNode(n, Math.round(item.dmg * 0.75 * mult));
+          break;
+        }
+      }
+    }
+
+    function performInteract() {
+      const p = state.player;
+      if (p.downed) return;
+
+      // In Build Mode, USE button places or removes structure at target tile!
+      if (state.buildMode) {
+        const target = getBuildTargetTile();
+        placeOrRemoveStructure(target.tx, target.ty, state.demolishMode);
+        return;
+      }
+
+      // 1. Co-op Revive Downed Teammate
+      for (const rp of state.remotePlayers.values()) {
+        if (rp.downed && Math.hypot(rp.x - p.x, rp.y - p.y) <= 28) {
+          rp.downed = false;
+          rp.hp = Math.round(rp.maxHp * 0.5);
+          sfx.play("revive");
+          spawnParticles(rp.x, rp.y, "#5eff8c", 18, 48);
+          addFloatText(rp.x, rp.y - 12, "REVIVED!", "#5eff8c");
+          showToast(`You revived ${rp.name}!`);
+          net.send({ type: "REVIVE_TARGET", targetId: rp.id, byName: p.name });
+          return;
+        }
+      }
+
+      const ptx = Math.floor(p.x / TILE_SIZE);
+      const pty = Math.floor(p.y / TILE_SIZE);
+
+      // 2. Blacksmith Bran Dialogue
+      if (Math.hypot(p.x - state.npc.x, p.y - state.npc.y) <= 26) {
+        sfx.play("gather");
+        if (!p.talkedToBran) {
+          p.talkedToBran = true;
+          state.resources.wood += 6;
+          state.resources.stone += 4;
+          state.dialogueText =
+            "Blacksmith Bran: 'Well met, hero! Take these spare planks & stones (+6 Wood, +4 Stone). " +
+            "Build a cabin in the South Meadow, then mine Crystals in the East Caverns to forge a Crystal Blade and break the Root Gate!'";
+        } else if (!state.gateUnlocked) {
+          state.dialogueText =
+            "Blacksmith Bran: 'Forge a Crystal Blade (6 Crystal, 4 Iron, 2 Wood) in the Crafting menu [C] to unlock the Root Gate in Pulse Caverns!'";
+        } else {
+          state.dialogueText =
+            "Blacksmith Bran: 'The Root Gate is open! Gather Ember Shards from the Eastern Wastes to forge the Ember Greatsword!'";
+        }
+        state.modal = "dialogue";
+        return;
+      }
+
+      // 3. Unlock Pulse Caverns Root Gate
+      for (let dy = -2; dy <= 2; dy++) {
+        for (let dx = -2; dx <= 2; dx++) {
+          const tx = ptx + dx, ty = pty + dy;
+          if (tx >= 0 && ty >= 0 && tx < WORLD_W && ty < WORLD_H && state.tiles[ty][tx] === TILE.ROOT_GATE) {
+            if (playerHasItem("crystal_blade") || playerHasItem("ember_sword")) {
+              for (let gy = 43; gy <= 45; gy++) {
+                state.tiles[gy][78] = TILE.ROOT_GATE_OPEN;
+                spawnParticles(78 * TILE_SIZE + 8, gy * TILE_SIZE + 8, "#4ff2ff", 14, 55);
+              }
+              state.gateUnlocked = true;
+              sfx.play("gate");
+              state.shake = 4;
+              net.send({ type: "GATE_OPEN" });
+              showToast("The Crystal Blade shatters the Root Gate! Beware the Root Warden!");
+            } else {
+              showToast("Locked Root Gate! Forge a Crystal Blade to break the seal.");
+            }
+            return;
+          }
+        }
+      }
+
+      // 4. Rest at a Placed Healing Bed
+      for (let dy = -2; dy <= 2; dy++) {
+        for (let dx = -2; dx <= 2; dx++) {
+          const st = state.structures.get(keyFor(ptx + dx, pty + dy));
+          if (st && st.isBed) {
+            p.spawnX = (ptx + dx) * TILE_SIZE + 8;
+            p.spawnY = (pty + dy) * TILE_SIZE + 8;
+            p.hp = p.maxHp;
+            p.stamina = p.maxStamina;
+            state.dayTime = 0.26;
+            state.dayCount += 1;
+            sfx.play("potion");
+            spawnParticles(p.x, p.y, "#7affb2", 18, 45);
+            showToast(`Rested until Morning (Day ${state.dayCount})! Spawn set & HP restored.`);
+            return;
+          }
+        }
+      }
+
+      // 5. Open Chests or Gather Nearby Resource Node
+      for (const n of [...state.nodes]) {
+        const nx = n.tx * TILE_SIZE + 8;
+        const ny = n.ty * TILE_SIZE + 8;
+        if (Math.hypot(nx - p.x, ny - p.y) <= 26) {
+          if (n.type === NODE_TYPE.CHEST) {
+            openChest(n);
+            return;
+          } else if (n.type !== NODE_TYPE.CAMPFIRE) {
+            performAttack();
+            return;
+          }
+        }
+      }
+
+      showToast("Nothing to interact with here.");
+    }
+
+    /* =========================================================================
+       10. HOUSE BUILDING, DEMOLISHING & INSTANT 5x5 CABIN BLUEPRINT
+       ========================================================================= */
+    function getBuildTargetTile() {
+      const p = state.player;
+      let tx, ty;
+      if (state.pointerWorld.active) {
+        tx = Math.floor(state.pointerWorld.x / TILE_SIZE);
+        ty = Math.floor(state.pointerWorld.y / TILE_SIZE);
+        const ptx = Math.floor(p.x / TILE_SIZE);
+        const pty = Math.floor(p.y / TILE_SIZE);
+        tx = Math.max(ptx - 5, Math.min(ptx + 5, tx));
+        ty = Math.max(pty - 5, Math.min(pty + 5, ty));
+      } else {
+        tx = Math.floor((p.x + p.dirX * 18) / TILE_SIZE);
+        ty = Math.floor((p.y + p.dirY * 18) / TILE_SIZE);
+      }
+      return { tx, ty };
+    }
+
+    function canPlaceStructureAt(tx, ty, def) {
+      if (tx < 2 || ty < 2 || tx >= WORLD_W - 2 || ty >= WORLD_H - 2) return false;
+      const t = state.tiles[ty][tx];
+      if (
+        t === TILE.CAVERN_WALL ||
+        t === TILE.OBSIDIAN_WALL ||
+        t === TILE.WATER ||
+        t === TILE.LAVA ||
+        t === TILE.FENCE ||
+        t === TILE.ROOT_GATE ||
+        t === TILE.ROOT_GATE_OPEN
+      ) {
+        return false;
+      }
+
+      if (Math.hypot(tx * TILE_SIZE + 8 - state.npc.x, ty * TILE_SIZE + 8 - state.npc.y) < 16) return false;
+      for (const n of state.nodes) {
+        if (n.tx === tx && n.ty === ty) return false;
+      }
+
+      const existing = state.structures.get(keyFor(tx, ty));
+      if (existing) {
+        if (existing.id === "floor" && (def.id === "torch" || def.id === "bed" || def.id === "campfire")) {
+          return true;
+        }
+        return false;
+      }
+      return true;
+    }
+
+    function placeOrRemoveStructure(tx, ty, forceRemove = false) {
+      const k = keyFor(tx, ty);
+      const existing = state.structures.get(k);
+
+      if (forceRemove || state.demolishMode) {
+        if (!existing) {
+          showToast("No player structure on that tile.");
+          return;
+        }
+        for (const [res, amt] of Object.entries(existing.cost)) {
+          state.resources[res] = (state.resources[res] || 0) + Math.ceil(amt * 0.5);
+        }
+        state.structures.delete(k);
+        net.send({ type: "STRUCT_UPDATE", action: "remove", tx, ty });
+        sfx.play("build");
+        spawnParticles(tx * TILE_SIZE + 8, ty * TILE_SIZE + 8, "#d4a373", 8, 35);
+        showToast(`Removed ${existing.name} (materials refunded).`);
+        return;
+      }
+
+      const def = BUILD_DEFS[state.selectedBuildIdx];
+      if (!canPlaceStructureAt(tx, ty, def)) {
+        showToast("Cannot build on this tile!");
+        return;
+      }
+      if (!hasResources(def.cost)) {
+        showToast(`Need more resources for ${def.name}!`);
+        return;
+      }
+
+      spendResources(def.cost);
+      const structObj = {
+        ...def,
+        tx,
+        ty,
+        curHp: def.hp,
+        fireCooldown: 0
+      };
+      state.structures.set(k, structObj);
+      advanceChallenge("build");
+      net.send({ type: "STRUCT_UPDATE", action: "place", struct: structObj });
+
+      if (def.isBed) {
+        state.player.spawnX = tx * TILE_SIZE + 8;
+        state.player.spawnY = ty * TILE_SIZE + 8;
+        showToast("Healing Bed placed! Respawn point updated.");
+      }
+
+      sfx.play("build");
+      spawnParticles(tx * TILE_SIZE + 8, ty * TILE_SIZE + 8, "#ffd479", 10, 40);
+      ensurePlayerNotStuck();
+    }
+
+    function buildInstantCabin() {
+      const p = state.player;
+      const baseTx = Math.floor(p.x / TILE_SIZE);
+      const baseTy = Math.floor(p.y / TILE_SIZE);
+
+      const offsets = [
+        [0, -1], [0, 0], [-2, -2], [2, -2], [-2, 2], [2, 2], [0, -3], [0, 3], [-3, 0], [3, 0]
+      ];
+      let bestCx = null, bestCy = null;
+
+      for (const [ox, oy] of offsets) {
+        const cx = baseTx + ox;
+        const cy = baseTy + oy;
+        let ok = true;
+        for (let dy = -2; dy <= 2; dy++) {
+          for (let dx = -2; dx <= 2; dx++) {
+            const tx = cx + dx, ty = cy + dy;
+            if (tx < 3 || ty < 3 || tx >= WORLD_W - 3 || ty >= WORLD_H - 3) ok = false;
+            const t = state.tiles[ty][tx];
+            if (t === TILE.CAVERN_WALL || t === TILE.OBSIDIAN_WALL || t === TILE.WATER || t === TILE.LAVA || t === TILE.FENCE || t === TILE.ROOT_GATE) ok = false;
+            if (state.structures.has(keyFor(tx, ty))) ok = false;
+            for (const n of state.nodes) {
+              if (n.tx === tx && n.ty === ty) ok = false;
+            }
+          }
+        }
+        if (ok) {
+          bestCx = cx;
+          bestCy = cy;
+          break;
+        }
+      }
+
+      if (bestCx === null) {
+        showToast("Move to a clearer 5x5 patch of land to build the Cabin!");
+        return false;
+      }
+
+      const floorDef = BUILD_DEFS.find(b => b.id === "floor");
+      const wallDef  = BUILD_DEFS.find(b => b.id === "wwall");
+      const doorDef  = BUILD_DEFS.find(b => b.id === "door");
+      const torchDef = BUILD_DEFS.find(b => b.id === "torch");
+      const bedDef   = BUILD_DEFS.find(b => b.id === "bed");
+
+      for (let dy = -2; dy <= 2; dy++) {
+        for (let dx = -2; dx <= 2; dx++) {
+          const tx = bestCx + dx;
+          const ty = bestCy + dy;
+          const isEdge = Math.abs(dx) === 2 || Math.abs(dy) === 2;
+          const isDoor = dx === 0 && dy === 2;
+
+          let piece = floorDef;
+          if (isDoor) piece = doorDef;
+          else if (isEdge) piece = wallDef;
+          else if (dx === -1 && dy === -1) piece = bedDef;
+          else if (dx === 1 && dy === -1) piece = torchDef;
+
+          const structObj = {
+            ...piece,
+            tx,
+            ty,
+            curHp: piece.hp,
+            fireCooldown: 0
+          };
+          state.structures.set(keyFor(tx, ty), structObj);
+          net.send({ type: "STRUCT_UPDATE", action: "place", struct: structObj });
+        }
+      }
+
+      p.x = bestCx * TILE_SIZE + 8;
+      p.y = bestCy * TILE_SIZE + 8;
+      p.spawnX = (bestCx - 1) * TILE_SIZE + 8;
+      p.spawnY = (bestCy - 1) * TILE_SIZE + 8;
+
+      sfx.play("craft");
+      spawnParticles(p.x, p.y, "#ffd43b", 26, 70);
+      showToast("5x5 Furnished Cabin built! Spawn point set to your new Bed.");
+      return true;
+    }
+
+    function executeCraft(recipe) {
+      if (!hasResources(recipe.cost)) {
+        showToast("Not enough materials!");
+        return;
+      }
+
+      if (recipe.action === "cabin") {
+        spendResources(recipe.cost);
+        const built = buildInstantCabin();
+        if (!built) {
+          for (const [k, v] of Object.entries(recipe.cost)) state.resources[k] += v;
+          return;
+        }
+        state.modal = null;
+        return;
+      }
+
+      if (recipe.action === "armor") {
+        if (state.player.hasArmor) {
+          showToast("You are already wearing Iron Armor!");
+          return;
+        }
+        spendResources(recipe.cost);
+        state.player.hasArmor = true;
+        state.player.maxHp = 150;
+        state.player.hp = 150;
+        sfx.play("craft");
+        spawnParticles(state.player.x, state.player.y, "#78f0ff", 16, 50);
+        showToast("Iron Armor equipped! Max HP increased to 150.");
+        return;
+      }
+
+      if (recipe.action === "potion") {
+        spendResources(recipe.cost);
+        giveItemToHotbar("potion", 1);
+        sfx.play("craft");
+        showToast("Crafted Health Potion!");
+        return;
+      }
+
+      if (recipe.itemId) {
+        if (playerHasItem(recipe.itemId)) {
+          showToast("You already carry this item!");
+          return;
+        }
+        spendResources(recipe.cost);
+        giveItemToHotbar(recipe.itemId, 1);
+        sfx.play("craft");
+        showToast(`Forged ${recipe.name}!`);
+      }
+    }
+
+    /* =========================================================================
+       11. UNIFIED KEYBOARD, MOUSE & MOBILE VIRTUAL JOYSTICK / BUTTON INPUTS
+       ========================================================================= */
+    const keys = {};
+    const joy = {
+      active: false,
+      pointerId: null,
+      baseX: 54,
+      baseY: 220,
+      knobX: 54,
+      knobY: 220,
+      dx: 0,
+      dy: 0
+    };
+
+    function getTouchButtons() {
+      const m = 10;
+      const bw = 38;
+      const bh = 28;
+      const rightX = logicalW - m - bw;
+      const leftBtnX = rightX - bw - 6;
+      const botY = logicalH - m - bh;
+      const midY = botY - bh - 6;
+      const topY = midY - bh - 6;
+
+      return [
+        { id: "atk",   label: "ATK",   x: rightX,   y: botY, w: bw, h: bh, bg: "rgba(175, 45, 58, 0.85)",  border: "#ff8592" },
+        { id: "use",   label: "USE",   x: leftBtnX, y: botY, w: bw, h: bh, bg: "rgba(38, 125, 86, 0.85)",  border: "#6effb8" },
+        { id: "build", label: "BUILD", x: rightX,   y: midY, w: bw, h: bh, bg: "rgba(165, 108, 32, 0.85)", border: "#ffd452" },
+        { id: "heal",  label: "HEAL",  x: leftBtnX, y: midY, w: bw, h: bh, bg: "rgba(145, 42, 118, 0.85)", border: "#ff8ce0" },
+        { id: "craft", label: "CRAFT", x: rightX,   y: topY, w: bw, h: bh, bg: "rgba(42, 95, 165, 0.85)",  border: "#78c2ff" },
+        { id: "chat",  label: "CHAT",  x: leftBtnX, y: topY, w: bw, h: bh, bg: "rgba(88, 64, 156, 0.85)",  border: "#cbb5ff" }
+      ];
+    }
+
+    function getTopBarPills() {
+      const y = 41;
+      return [
+        { id: "mute",  label: sfx.muted ? "MUTE" : "SFX", x: 6,   y, w: 30, h: 14 },
+        { id: "touch", label: showTouchControls ? "PAD:ON" : "PAD:OFF", x: 39, y, w: 42, h: 14 },
+        { id: "save",  label: "SAVE", x: 84,  y, w: 30, h: 14 },
+        { id: "pause", label: "||",   x: 117, y, w: 18, h: 14 },
+        { id: "music", label: sfx.musicEnabled ? "MUS:ON" : "MUS:OFF", x: 138, y, w: 42, h: 14 }
+      ];
+    }
+
+    function getHotbarRects() {
+      const slotSize = 21;
+      const gap = 3;
+      const totalW = 5 * slotSize + 4 * gap;
+      const startX = Math.floor((logicalW - totalW) / 2);
+      const startY = logicalH - slotSize - 6;
+      const rects = [];
+      for (let i = 0; i < 5; i++) {
+        rects.push({ index: i, x: startX + i * (slotSize + gap), y: startY, w: slotSize, h: slotSize });
+      }
+      return rects;
+    }
+
+    function getBuildPaletteRects() {
+      const items = [...BUILD_DEFS, { id: "demolish", short: "DEL" }];
+      const cellW = 28;
+      const cellH = 18;
+      const gap = 2;
+      const totalW = items.length * cellW + (items.length - 1) * gap;
+      const startX = Math.max(4, Math.floor((logicalW - totalW) / 2));
+      const startY = logicalH - 50;
+      return items.map((item, idx) => ({
+        item,
+        idx,
+        x: startX + idx * (cellW + gap),
+        y: startY,
+        w: cellW,
+        h: cellH
+      }));
+    }
+
+    function getMinimapRect() {
+      const mw = 64;
+      const mh = 42;
+      return { x: logicalW - mw - 6, y: 6, w: mw, h: mh };
+    }
+
+    function getCraftingCardRects() {
+      const boxW = Math.min(logicalW - 16, 330);
+      const boxH = Math.min(logicalH - 16, 250);
+      const bx = Math.floor((logicalW - boxW) / 2);
+      const by = Math.floor((logicalH - boxH) / 2);
+      const headerH = 22;
+      const footerH = 16;
+      const availH = boxH - headerH - footerH;
+      const rowH = Math.max(18, Math.floor(availH / RECIPES.length));
+      const rows = RECIPES.map((rec, i) => ({
+        recipe: rec,
+        x: bx + 8,
+        y: by + headerH + i * rowH,
+        w: boxW - 16,
+        h: rowH - 2
+      }));
+      return { bx, by, boxW, boxH, rows };
+    }
+
+    function getQuickChatRects() {
+      const cols = 3;
+      const btnW = 68;
+      const btnH = 18;
+      const gap = 4;
+      const totalW = cols * btnW + (cols - 1) * gap;
+      const startX = Math.floor((logicalW - totalW) / 2);
+      const startY = logicalH - 76;
+      return QUICK_CHATS.map((text, idx) => ({
+        text,
+        x: startX + (idx % cols) * (btnW + gap),
+        y: startY + Math.floor(idx / cols) * (btnH + gap),
+        w: btnW,
+        h: btnH
+      }));
+    }
+
+    function pointInRect(px, py, r) {
+      return px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h;
+    }
+
+    function respawnLocalPlayer() {
+      const p = state.player;
+      p.downed = false;
+      p.hp = p.maxHp;
+      p.stamina = p.maxStamina;
+      p.x = p.spawnX;
+      p.y = p.spawnY;
+      p.invuln = 1.6;
+      state.screen = "playing";
+    }
+
+    function handleCanvasTap(lx, ly, button = 0) {
+      sfx.init();
+
+      if (state.screen === "gameover") {
+        respawnLocalPlayer();
+        return;
+      }
+
+      if (state.screen === "victory") {
+        state.screen = "playing";
+        return;
+      }
+
+      if (state.screen !== "playing") return;
+
+      if (state.modal === "dialogue") {
+        state.modal = null;
+        return;
+      }
+
+      if (state.modal === "map") {
+        state.modal = null;
+        return;
+      }
+
+      if (state.modal === "pause") {
+        const bw = 150, bh = 22;
+        const bx = Math.floor((logicalW - bw) / 2);
+        const by = Math.floor(logicalH / 2) - 24;
+        if (pointInRect(lx, ly, { x: bx, y: by, w: bw, h: bh })) {
+          state.modal = null;
+        } else if (pointInRect(lx, ly, { x: bx, y: by + 28, w: bw, h: bh })) {
+          saveGame();
+          state.modal = null;
+        } else if (pointInRect(lx, ly, { x: bx, y: by + 56, w: bw, h: bh })) {
+          net.cleanup();
+          state.modal = null;
+          state.screen = "title";
+          titleOverlay.classList.remove("hidden");
+        }
+        return;
+      }
+
+      if (state.modal === "crafting") {
+        const { bx, by, boxW, boxH, rows } = getCraftingCardRects();
+        if (!pointInRect(lx, ly, { x: bx, y: by, w: boxW, h: boxH })) {
+          state.modal = null;
+          return;
+        }
+        for (const r of rows) {
+          if (pointInRect(lx, ly, r)) {
+            executeCraft(r.recipe);
+            return;
+          }
+        }
+        return;
+      }
+
+      // Quick Chat Popup
+      if (state.quickChatOpen) {
+        for (const q of getQuickChatRects()) {
+          if (pointInRect(lx, ly, q)) {
+            sendQuickChat(q.text);
+            return;
+          }
+        }
+        state.quickChatOpen = false;
+      }
+
+      // Top Utility Pills
+      for (const pill of getTopBarPills()) {
+        if (pointInRect(lx, ly, pill)) {
+          if (pill.id === "mute") {
+            sfx.muted = !sfx.muted;
+            showToast(sfx.muted ? "Audio Muted" : "Audio Unmuted");
+          } else if (pill.id === "touch") {
+            showTouchControls = !showTouchControls;
+          } else if (pill.id === "save") {
+            saveGame();
+          } else if (pill.id === "pause") {
+            state.modal = "pause";
+          } else if (pill.id === "music") {
+            sfx.musicEnabled = !sfx.musicEnabled;
+            showToast(sfx.musicEnabled ? "Adventure music on" : "Music off");
+          }
+          return;
+        }
+      }
+
+      // Minimap tap -> Full World Map
+      if (pointInRect(lx, ly, getMinimapRect())) {
+        state.modal = "map";
+        return;
+      }
+
+      // Hotbar tap
+      for (const slotRect of getHotbarRects()) {
+        if (pointInRect(lx, ly, slotRect)) {
+          state.selectedSlot = slotRect.index;
+          state.buildMode = false;
+          return;
+        }
+      }
+
+      // Build Palette tap
+      if (state.buildMode) {
+        for (const bRect of getBuildPaletteRects()) {
+          if (pointInRect(lx, ly, bRect)) {
+            if (bRect.item.id === "demolish") {
+              state.demolishMode = !state.demolishMode;
+            } else {
+              state.demolishMode = false;
+              state.selectedBuildIdx = bRect.idx;
+            }
+            return;
+          }
+        }
+      }
+
+      // Touch Buttons
+      if (showTouchControls) {
+        for (const btn of getTouchButtons()) {
+          if (pointInRect(lx, ly, btn)) {
+            if (btn.id === "atk") performAttack();
+            else if (btn.id === "use") performInteract();
+            else if (btn.id === "heal") drinkPotion();
+            else if (btn.id === "build") {
+              state.buildMode = !state.buildMode;
+              state.demolishMode = false;
+            } else if (btn.id === "craft") {
+              state.buildMode = false;
+              state.modal = "crafting";
+            } else if (btn.id === "chat") {
+              state.quickChatOpen = !state.quickChatOpen;
+            }
+            return;
+          }
+        }
+      }
+
+      // World tap / click
+      const wx = lx + state.camera.x;
+      const wy = ly + state.camera.y;
+      state.pointerWorld = { x: wx, y: wy, active: true };
+
+      const p = state.player;
+      const ang = Math.atan2(wy - p.y, wx - p.x);
+      p.dirX = Math.cos(ang);
+      p.dirY = Math.sin(ang);
+
+      if (state.buildMode) {
+        const target = getBuildTargetTile();
+        placeOrRemoveStructure(target.tx, target.ty, button === 2 || state.demolishMode);
+        return;
+      }
+
+      if (button === 2) {
+        performInteract();
+      } else {
+        performAttack();
+      }
+    }
+
+    canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+
+    canvas.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      sfx.init();
+      const pt = clientToLogical(e.clientX, e.clientY);
+
+      if (
+        state.screen === "playing" &&
+        !state.modal &&
+        showTouchControls &&
+        e.pointerType === "touch" &&
+        pt.x < logicalW * 0.42 &&
+        pt.y > logicalH * 0.42 &&
+        !joy.active
+      ) {
+        joy.active = true;
+        joy.pointerId = e.pointerId;
+        joy.baseX = Math.max(36, Math.min(logicalW * 0.34, pt.x));
+        joy.baseY = Math.max(logicalH * 0.52, Math.min(logicalH - 36, pt.y));
+        joy.knobX = joy.baseX;
+        joy.knobY = joy.baseY;
+        joy.dx = 0;
+        joy.dy = 0;
+        return;
+      }
+
+      handleCanvasTap(pt.x, pt.y, e.button);
+    });
+
+    canvas.addEventListener("pointermove", (e) => {
+      const pt = clientToLogical(e.clientX, e.clientY);
+      if (state.screen === "playing") {
+        state.pointerWorld.x = pt.x + state.camera.x;
+        state.pointerWorld.y = pt.y + state.camera.y;
+        state.pointerWorld.active = true;
+      }
+
+      if (joy.active && e.pointerId === joy.pointerId) {
+        const maxR = 24;
+        const vx = pt.x - joy.baseX;
+        const vy = pt.y - joy.baseY;
+        const dist = Math.hypot(vx, vy);
+        if (dist > maxR) {
+          joy.knobX = joy.baseX + (vx / dist) * maxR;
+          joy.knobY = joy.baseY + (vy / dist) * maxR;
+        } else {
+          joy.knobX = pt.x;
+          joy.knobY = pt.y;
+        }
+        joy.dx = dist > 3 ? (joy.knobX - joy.baseX) / maxR : 0;
+        joy.dy = dist > 3 ? (joy.knobY - joy.baseY) / maxR : 0;
+      }
+    });
+
+    const releaseJoy = (e) => {
+      if (joy.active && e.pointerId === joy.pointerId) {
+        joy.active = false;
+        joy.pointerId = null;
+        joy.dx = 0;
+        joy.dy = 0;
+      }
+    };
+    canvas.addEventListener("pointerup", releaseJoy);
+    canvas.addEventListener("pointercancel", releaseJoy);
+
+    window.addEventListener("keydown", (e) => {
+      if (document.activeElement && (document.activeElement.tagName === "INPUT" || document.activeElement.tagName === "TEXTAREA")) {
+        return;
+      }
+      const code = e.code;
+      keys[code] = true;
+
+      if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(code)) {
+        e.preventDefault();
+      }
+
+      sfx.init();
+
+      if (state.screen === "gameover") {
+        if (code === "KeyR" || code === "Space" || code === "Enter") respawnLocalPlayer();
+        return;
+      }
+      if (state.screen === "victory") {
+        if (code === "Escape" || code === "Space" || code === "Enter") state.screen = "playing";
+        return;
+      }
+      if (state.screen !== "playing") return;
+
+      if (code === "Escape") {
+        if (state.modal) state.modal = null;
+        else if (state.quickChatOpen) state.quickChatOpen = false;
+        else if (state.buildMode) state.buildMode = false;
+        else state.modal = "pause";
+        return;
+      }
+
+      if (code === "KeyC") {
+        state.buildMode = false;
+        state.modal = state.modal === "crafting" ? null : "crafting";
+        return;
+      }
+      if (code === "KeyM") {
+        state.modal = state.modal === "map" ? null : "map";
+        return;
+      }
+      if (code === "KeyT") {
+        state.quickChatOpen = !state.quickChatOpen;
+        return;
+      }
+      if (code === "KeyN") {
+        sfx.musicEnabled = !sfx.musicEnabled;
+        showToast(sfx.musicEnabled ? "Adventure music on" : "Music off");
+        return;
+      }
+
+      if (state.modal) {
+        if (state.modal === "dialogue" && (code === "Space" || code === "KeyE" || code === "Enter")) {
+          state.modal = null;
+        }
+        return;
+      }
+
+      if (code === "KeyB") {
+        state.buildMode = !state.buildMode;
+        state.demolishMode = false;
+      } else if (code === "KeyX" && state.buildMode) {
+        state.demolishMode = !state.demolishMode;
+      } else if (code === "Space") {
+        performAttack();
+      } else if (code === "KeyE") {
+        performInteract();
+      } else if (code === "KeyQ") {
+        drinkPotion();
+      } else if (code === "F5") {
+        e.preventDefault();
+        saveGame();
+      } else if (code === "Digit1") { state.selectedSlot = 0; state.buildMode = false; }
+      else if (code === "Digit2") { state.selectedSlot = 1; state.buildMode = false; }
+      else if (code === "Digit3") { state.selectedSlot = 2; state.buildMode = false; }
+      else if (code === "Digit4") { state.selectedSlot = 3; state.buildMode = false; }
+      else if (code === "Digit5") { state.selectedSlot = 4; state.buildMode = false; }
+    });
+
+    window.addEventListener("keyup", (e) => {
+      keys[e.code] = false;
+    });
+
+    /* =========================================================================
+       12. MAIN SIMULATION LOOP (PLAYER, CO-OP SYNC, TURRETS, ENEMIES, BOSS)
+       ========================================================================= */
+    function damagePlayer(amount) {
+      const p = state.player;
+      if (p.invuln > 0 || p.downed) return;
+      const mitigated = p.hasArmor ? Math.max(1, Math.round(amount * 0.68)) : amount;
+      p.hp = Math.max(0, p.hp - mitigated);
+      p.invuln = 0.72;
+      state.shake = Math.max(state.shake, 3.0);
+      sfx.play("hurt");
+      spawnParticles(p.x, p.y, "#ff3b5c", 10, 46);
+      addFloatText(p.x, p.y - 10, `-${mitigated}`, "#ff4d6d");
+
+      if (p.hp <= 0) {
+        // Check if a co-op teammate is alive!
+        const aliveAlly = Array.from(state.remotePlayers.values()).some(rp => !rp.downed && rp.hp > 0);
+        if (net.mode !== "solo" && aliveAlly) {
+          p.downed = true;
+          showToast("You are DOWNED! Teammate can revive you with USE.");
+          sendQuickChat("Help!");
+        } else {
+          state.screen = "gameover";
+        }
+      }
+    }
+
+    function updateSimulation(dt) {
+      sfx.updateMusic(dt, state.screen === "playing");
+
+      if (state.toastTimer > 0) state.toastTimer = Math.max(0, state.toastTimer - dt);
+      if (state.shake > 0) state.shake = Math.max(0, state.shake - dt * 18);
+
+      if (state.screen !== "playing") {
+        state.dayTime = (state.dayTime + dt * 0.008) % 1;
+        return;
+      }
+
+      net.update(dt);
+
+      if (state.modal) return;
+
+      // Day/Night cycle
+      state.dayTime += dt * 0.0042;
+      if (state.dayTime >= 1) {
+        state.dayTime -= 1;
+        state.dayCount += 1;
+        resetDailyChallenge(state.dayCount);
+        showToast(`Dawn of Day ${state.dayCount} — new challenge!`);
+      }
+
+      const p = state.player;
+      if (p.attackCooldown > 0) p.attackCooldown = Math.max(0, p.attackCooldown - dt);
+      if (p.attackAnim > 0) p.attackAnim = Math.max(0, p.attackAnim - dt);
+      if (p.invuln > 0) p.invuln = Math.max(0, p.invuln - dt);
+      if (p.emoteTimer > 0) p.emoteTimer = Math.max(0, p.emoteTimer - dt);
+
+      // Movement vector
+      let mx = 0, my = 0;
+      if (!p.downed) {
+        if (keys["KeyW"] || keys["ArrowUp"]) my -= 1;
+        if (keys["KeyS"] || keys["ArrowDown"]) my += 1;
+        if (keys["KeyA"] || keys["ArrowLeft"]) mx -= 1;
+        if (keys["KeyD"] || keys["ArrowRight"]) mx += 1;
+
+        if (joy.active) {
+          mx += joy.dx;
+          my += joy.dy;
+        }
+      }
+
+      const mag = Math.hypot(mx, my);
+      if (mag > 0.05) {
+        const nx = mx / Math.max(1, mag);
+        const ny = my / Math.max(1, mag);
+        p.dirX = nx / Math.hypot(nx, ny);
+        p.dirY = ny / Math.hypot(nx, ny);
+
+        const sprinting = (keys["ShiftLeft"] || keys["ShiftRight"]) && p.stamina > 5;
+        const speed = sprinting ? 114 : 78;
+        if (sprinting) p.stamina = Math.max(0, p.stamina - dt * 26);
+        else p.stamina = Math.min(p.maxStamina, p.stamina + dt * 16);
+
+        moveWithCollision(p, nx * speed * dt, ny * speed * dt, 5, 5, true);
+        p.walkAnim += dt * (sprinting ? 14 : 9);
+      } else {
+        p.stamina = Math.min(p.maxStamina, p.stamina + dt * 22);
+      }
+
+      // Healing Campfire Warmth
+      if (!p.downed) {
+        let nearFire = false;
+        for (const n of state.nodes) {
+          if (n.type === NODE_TYPE.CAMPFIRE && Math.hypot(n.tx * TILE_SIZE + 8 - p.x, n.ty * TILE_SIZE + 8 - p.y) < 34) {
+            nearFire = true;
+            break;
+          }
+        }
+        if (!nearFire) {
+          for (const st of state.structures.values()) {
+            if (st.isCampfire && Math.hypot(st.tx * TILE_SIZE + 8 - p.x, st.ty * TILE_SIZE + 8 - p.y) < 34) {
+              nearFire = true;
+              break;
+            }
+          }
+        }
+        if (nearFire && p.hp < p.maxHp) {
+          p.hp = Math.min(p.maxHp, p.hp + dt * 12);
+        }
+      }
+
+      // Crystal Auto-Turrets
+      for (const st of state.structures.values()) {
+        if (!st.isTurret) continue;
+        if (st.fireCooldown > 0) {
+          st.fireCooldown -= dt;
+          continue;
+        }
+        const tx = st.tx * TILE_SIZE + 8;
+        const ty = st.ty * TILE_SIZE + 8;
+        let closest = null, bestDist = 115;
+        for (const e of state.enemies) {
+          const d = Math.hypot(e.x - tx, e.y - ty);
+          if (d < bestDist) {
+            bestDist = d;
+            closest = e;
+          }
+        }
+        if (closest) {
+          st.fireCooldown = 1.15;
+          const ang = Math.atan2(closest.y - ty, closest.x - tx);
+          state.projectiles.push({
+            fromPlayer: true,
+            kind: "turret_bolt",
+            x: tx,
+            y: ty,
+            vx: Math.cos(ang) * 185,
+            vy: Math.sin(ang) * 185,
+            dmg: 18,
+            life: 0.7,
+            color: "#5ef7ff"
+          });
+        }
+      }
+
+      // Update Projectiles
+      for (const proj of state.projectiles) {
+        proj.x += proj.vx * dt;
+        proj.y += proj.vy * dt;
+        proj.life -= dt;
+
+        const ptx = Math.floor(proj.x / TILE_SIZE);
+        const pty = Math.floor(proj.y / TILE_SIZE);
+        if (ptx < 0 || pty < 0 || ptx >= WORLD_W || pty >= WORLD_H) {
+          proj.life = 0;
+          continue;
+        }
+        const tile = state.tiles[pty][ptx];
+        if (tile === TILE.CAVERN_WALL || tile === TILE.OBSIDIAN_WALL || tile === TILE.ROOT_GATE) {
+          proj.life = 0;
+          spawnParticles(proj.x, proj.y, proj.color, 4, 25);
+          continue;
+        }
+
+        if (proj.fromPlayer) {
+          for (const e of state.enemies) {
+            if (e.hp <= 0) continue;
+            if (proj.hitIds && proj.hitIds.has(e.id)) continue;
+            const rad = e.isBoss ? 17 : 10;
+            if (Math.hypot(e.x - proj.x, e.y - proj.y) <= rad) {
+              const spd = Math.hypot(proj.vx, proj.vy) || 1;
+              applyEnemyDamageLocal(e, proj.dmg, proj.vx / spd, proj.vy / spd, true);
+              if (proj.pierce && proj.hitIds) {
+                proj.hitIds.add(e.id);
+              } else {
+                proj.life = 0;
+                break;
+              }
+            }
+          }
+        } else if (!p.downed && Math.hypot(p.x - proj.x, p.y - proj.y) <= 9) {
+          damagePlayer(proj.dmg);
+          proj.life = 0;
+        }
+      }
+      state.projectiles = state.projectiles.filter(pr => pr.life > 0);
+      state.enemies = state.enemies.filter(e => e.hp > 0);
+
+      // Enemy & Root Warden Boss AI (Host or Solo runs authoritative AI)
+      const isAuthoritative = (net.mode === "solo" || net.mode === "host");
+      if (isAuthoritative) {
+        // Build list of active hero targets (local + remote)
+        const targets = [];
+        if (!p.downed) targets.push(p);
+        for (const rp of state.remotePlayers.values()) {
+          if (!rp.downed && rp.hp > 0) targets.push(rp);
+        }
+
+        for (const e of state.enemies) {
+          if (e.hitFlash > 0) e.hitFlash = Math.max(0, e.hitFlash - dt);
+
+          // Find closest hero target
+          let targetHero = p;
+          let dist = Infinity;
+          for (const tHero of targets) {
+            const d = Math.hypot(tHero.x - e.x, tHero.y - e.y);
+            if (d < dist) {
+              dist = d;
+              targetHero = tHero;
+            }
+          }
+
+          if (e.isBoss) {
+            if (e.hp < e.maxHp * 0.35) e.phase = 3;
+            else if (e.hp < e.maxHp * 0.70) e.phase = 2;
+
+            if (dist < e.aggro) {
+              const ang = Math.atan2(targetHero.y - e.y, targetHero.x - e.x);
+              const spd = e.speed + (e.phase - 1) * 11;
+              moveWithCollision(e, Math.cos(ang) * spd * dt, Math.sin(ang) * spd * dt, 10, 10, false);
+
+              e.attackTimer -= dt;
+              if (e.attackTimer <= 0) {
+                e.attackTimer = e.phase === 3 ? 1.35 : 1.9;
+                const count = e.phase === 1 ? 5 : e.phase === 2 ? 8 : 12;
+                sfx.play("roar");
+                for (let i = 0; i < count; i++) {
+                  const a = ang + (Math.PI * 2 * i) / count;
+                  const bolt = {
+                    fromPlayer: false,
+                    kind: "root_orb",
+                    x: e.x,
+                    y: e.y,
+                    vx: Math.cos(a) * 115,
+                    vy: Math.sin(a) * 115,
+                    dmg: 18,
+                    life: 1.4,
+                    color: "#4ff2ff"
+                  };
+                  state.projectiles.push(bolt);
+                  net.broadcast({ type: "PROJECTILE_SPAWN", proj: bolt });
+                }
+              }
+
+              if (Math.hypot(p.x - e.x, p.y - e.y) < 19) damagePlayer(e.dmg);
+            }
+            continue;
+          }
+
+          if (dist < e.aggro) {
+            const ang = Math.atan2(targetHero.y - e.y, targetHero.x - e.x);
+            moveWithCollision(e, Math.cos(ang) * e.speed * dt, Math.sin(ang) * e.speed * dt, 5, 5, false);
+            if (Math.hypot(p.x - e.x, p.y - e.y) < 13) {
+              damagePlayer(e.dmg);
+            }
+          } else {
+            e.aiTimer -= dt;
+            if (e.aiTimer <= 0) {
+              e.aiTimer = 1.5 + Math.random() * 2;
+              const a = Math.random() * Math.PI * 2;
+              e.wanderX = Math.cos(a);
+              e.wanderY = Math.sin(a);
+            }
+            if (Math.hypot(e.homeX - e.x, e.homeY - e.y) > 48) {
+              const back = Math.atan2(e.homeY - e.y, e.homeX - e.x);
+              e.wanderX = Math.cos(back);
+              e.wanderY = Math.sin(back);
+            }
+            moveWithCollision(e, (e.wanderX || 0) * (e.speed * 0.35) * dt, (e.wanderY || 0) * (e.speed * 0.35) * dt, 5, 5, false);
+          }
+        }
+      } else {
+        for (const e of state.enemies) {
+          if (e.hitFlash > 0) e.hitFlash = Math.max(0, e.hitFlash - dt);
+        }
+      }
+
+      // Particles & Floating Text
+      for (const pt of state.particles) {
+        pt.x += pt.vx * dt;
+        pt.y += pt.vy * dt;
+        pt.life -= dt;
+      }
+      state.particles = state.particles.filter(pt => pt.life > 0);
+
+      for (const ft of state.floatTexts) {
+        ft.y -= 16 * dt;
+        ft.life -= dt;
+      }
+      state.floatTexts = state.floatTexts.filter(ft => ft.life > 0);
+
+      // Camera smooth follow
+      const targetCamX = p.x - logicalW / 2;
+      const targetCamY = p.y - logicalH / 2;
+      const maxCamX = WORLD_W * TILE_SIZE - logicalW;
+      const maxCamY = WORLD_H * TILE_SIZE - logicalH;
+      state.camera.x = Math.max(0, Math.min(maxCamX, targetCamX));
+      state.camera.y = Math.max(0, Math.min(maxCamY, targetCamY));
+    }
+
+    /* =========================================================================
+       13. CRISP PIXEL RENDERING, DYNAMIC LIGHTING & CO-OP HUD
+       ========================================================================= */
+    function getNightAlpha() {
+      const t = state.dayTime;
+      if (t >= 0.22 && t <= 0.68) return 0.0;
+      if (t > 0.68 && t < 0.78) return ((t - 0.68) / 0.10) * 0.66;
+      if (t >= 0.78 || t <= 0.12) return 0.66;
+      return ((0.22 - t) / 0.10) * 0.66;
+    }
+
+    function drawHeroCharacter(hero, isLocal, timeSec) {
+      const sx = Math.round(hero.x - state.camera.x);
+      const sy = Math.round(hero.y - state.camera.y);
+      const bob = Math.sin(hero.walkAnim || 0) * 1.3;
+
+      // Shadow
+      ctx.fillStyle = "rgba(0,0,0,0.4)";
+      ctx.fillRect(sx - 5, sy + 5, 10, 3);
+
+      if (hero.downed) {
+        // Downed hero lying on ground with pulsing SOS cross
+        ctx.fillStyle = hero.color || "#3d7bd9";
+        ctx.fillRect(sx - 6, sy, 12, 5);
+        ctx.fillStyle = "#f2c19b";
+        ctx.fillRect(sx - 8, sy - 1, 4, 4);
+        const pulse = Math.sin(timeSec * 8) > 0;
+        ctx.fillStyle = pulse ? "#ff4757" : "#ffd452";
+        ctx.fillRect(sx - 1, sy - 12, 2, 6);
+        ctx.fillRect(sx - 3, sy - 10, 6, 2);
+      } else {
+        // Tunic / Armor
+        ctx.fillStyle = hero.hasArmor ? "#8899b0" : (hero.color || "#3d7bd9");
+        ctx.fillRect(sx - 4, sy - 2 + bob, 8, 7);
+
+        // Head & Hair
+        ctx.fillStyle = "#f2c19b";
+        ctx.fillRect(sx - 4, sy - 8 + bob, 8, 6);
+        ctx.fillStyle = "#5c3419";
+        ctx.fillRect(sx - 4, sy - 9 + bob, 8, 2);
+
+        // Eyes
+        ctx.fillStyle = "#111";
+        const eyeOffX = (hero.dirX || 0) >= 0 ? 1 : -2;
+        ctx.fillRect(sx + eyeOffX, sy - 6 + bob, 1, 2);
+        ctx.fillRect(sx + eyeOffX + 2, sy - 6 + bob, 1, 2);
+
+        // Held Weapon / Tool
+        const toolId = isLocal
+          ? (state.hotbar[state.selectedSlot]?.id || "wood_axe")
+          : (hero.toolId || "wood_axe");
+        const toolColor = (ITEM_DEFS[toolId] || ITEM_DEFS.wood_axe).color;
+        const swingAng = Math.atan2(hero.dirY || 0, hero.dirX || 1) + ((hero.attackAnim || 0) > 0 ? Math.sin(hero.attackAnim * 35) * 1.1 : 0);
+        const wx = sx + Math.cos(swingAng) * 8;
+        const wy = sy + Math.sin(swingAng) * 8;
+        ctx.strokeStyle = toolColor;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(wx, wy);
+        ctx.stroke();
+
+        if ((hero.attackAnim || 0) > 0) {
+          ctx.strokeStyle = "rgba(255,255,255,0.65)";
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.arc(sx, sy, 14, swingAng - 0.7, swingAng + 0.7);
+          ctx.stroke();
+        }
+      }
+
+      // Nameplate & HP bar above remote teammates (and local name in co-op)
+      if (!isLocal || net.mode !== "solo") {
+        const label = hero.downed ? `${hero.name} [USE]` : hero.name;
+        ctx.font = "bold 6px Inter, monospace";
+        const tw = ctx.measureText(label).width;
+        ctx.fillStyle = "rgba(10,8,20,0.72)";
+        ctx.fillRect(sx - tw / 2 - 2, sy - 20, tw + 4, 8);
+        ctx.fillStyle = hero.downed ? "#ff6b81" : "#ffffff";
+        ctx.fillText(label, sx - tw / 2, sy - 19);
+
+        if (!isLocal) {
+          ctx.fillStyle = "#1c172e";
+          ctx.fillRect(sx - 8, sy - 11, 16, 2);
+          ctx.fillStyle = "#4fff88";
+          ctx.fillRect(sx - 8, sy - 11, Math.round(16 * Math.max(0, hero.hp / Math.max(1, hero.maxHp))), 2);
+        }
+      }
+
+      // Quick Chat Speech Bubble above head
+      if ((hero.emoteTimer || 0) > 0 && hero.emoteText) {
+        ctx.font = "bold 7px Inter, monospace";
+        const bw = ctx.measureText(hero.emoteText).width + 8;
+        const bx = Math.round(sx - bw / 2);
+        const by = sy - 33;
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(bx, by, bw, 11);
+        ctx.strokeStyle = "#181329";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, 10);
+        ctx.fillStyle = "#141024";
+        ctx.fillText(hero.emoteText, bx + 4, by + 2);
+      }
+    }
+
+    function renderWorld() {
+      const shakeX = state.shake > 0 ? (Math.random() - 0.5) * state.shake : 0;
+      const shakeY = state.shake > 0 ? (Math.random() - 0.5) * state.shake : 0;
+      const camX = Math.floor(state.camera.x + shakeX);
+      const camY = Math.floor(state.camera.y + shakeY);
+
+      const startTx = Math.max(0, Math.floor(camX / TILE_SIZE));
+      const startTy = Math.max(0, Math.floor(camY / TILE_SIZE));
+      const endTx = Math.min(WORLD_W - 1, Math.ceil((camX + logicalW) / TILE_SIZE));
+      const endTy = Math.min(WORLD_H - 1, Math.ceil((camY + logicalH) / TILE_SIZE));
+
+      const timeSec = performance.now() * 0.001;
+
+      for (let ty = startTy; ty <= endTy; ty++) {
+        for (let tx = startTx; tx <= endTx; tx++) {
+          const sx = tx * TILE_SIZE - camX;
+          const sy = ty * TILE_SIZE - camY;
+          const t = state.tiles[ty][tx];
+          const alt = (tx + ty) & 1;
+
+          let spr = SPRITES.grass0;
+          if (t === TILE.GRASS) spr = alt ? SPRITES.grass1 : SPRITES.grass0;
+          else if (t === TILE.FOREST_GRASS) spr = alt ? SPRITES.fgrass1 : SPRITES.fgrass0;
+          else if (t === TILE.PATH) spr = SPRITES.path;
+          else if (t === TILE.CAVERN_FLOOR) spr = SPRITES.cavern_floor;
+          else if (t === TILE.SANCTUM_FLOOR) spr = SPRITES.sanctum_floor;
+          else if (t === TILE.CAVERN_WALL) spr = SPRITES.cavern_wall;
+          else if (t === TILE.ASH_FLOOR) spr = SPRITES.ash_floor;
+          else if (t === TILE.OBSIDIAN_WALL) spr = SPRITES.obsidian_wall;
+          else if (t === TILE.WATER) spr = SPRITES.water;
+          else if (t === TILE.LAVA) spr = SPRITES.lava;
+          else if (t === TILE.FENCE) spr = SPRITES.fence;
+          else if (t === TILE.ROOT_GATE) spr = SPRITES.root_gate;
+          else if (t === TILE.ROOT_GATE_OPEN) spr = SPRITES.root_gate_open;
+
+          ctx.drawImage(spr, sx, sy);
+
+          if (t === TILE.WATER && ((tx + Math.floor(timeSec * 2)) % 3 === 0)) {
+            ctx.fillStyle = "rgba(150, 215, 255, 0.35)";
+            ctx.fillRect(sx + 4, sy + 6, 4, 1);
+          } else if (t === TILE.LAVA && ((ty + Math.floor(timeSec * 3)) % 2 === 0)) {
+            ctx.fillStyle = "rgba(255, 235, 110, 0.45)";
+            ctx.fillRect(sx + 5, sy + 5, 4, 2);
+          }
+        }
+      }
+
+      const p = state.player;
+      for (const st of state.structures.values()) {
+        if (st.tx < startTx - 1 || st.tx > endTx + 1 || st.ty < startTy - 1 || st.ty > endTy + 1) continue;
+        const sx = st.tx * TILE_SIZE - camX;
+        const sy = st.ty * TILE_SIZE - camY;
+
+        if (st.id === "floor") ctx.drawImage(SPRITES.b_floor, sx, sy);
+        else if (st.id === "wwall") ctx.drawImage(SPRITES.b_wwall, sx, sy);
+        else if (st.id === "swall") ctx.drawImage(SPRITES.b_swall, sx, sy);
+        else if (st.id === "door") {
+          let nearAnyHero = Math.hypot(p.x - (st.tx * TILE_SIZE + 8), p.y - (st.ty * TILE_SIZE + 8)) < 24;
+          if (!nearAnyHero) {
+            for (const rp of state.remotePlayers.values()) {
+              if (Math.hypot(rp.x - (st.tx * TILE_SIZE + 8), rp.y - (st.ty * TILE_SIZE + 8)) < 24) {
+                nearAnyHero = true;
+                break;
+              }
+            }
+          }
+          ctx.drawImage(nearAnyHero ? SPRITES.b_door_open : SPRITES.b_door_closed, sx, sy);
+        } else if (st.id === "torch") {
+          ctx.drawImage(SPRITES.b_floor, sx, sy);
+          ctx.drawImage(SPRITES.b_torch, sx, sy);
+        } else if (st.id === "campfire") {
+          ctx.drawImage(SPRITES.b_floor, sx, sy);
+          drawCampfireSprite(sx, sy, timeSec);
+        } else if (st.id === "bed") {
+          ctx.drawImage(SPRITES.b_floor, sx, sy);
+          ctx.drawImage(SPRITES.b_bed, sx, sy);
+        } else if (st.id === "turret") {
+          ctx.drawImage(SPRITES.b_turret, sx, sy);
+        }
+      }
+
+      for (const n of state.nodes) {
+        if (n.tx < startTx - 2 || n.tx > endTx + 2 || n.ty < startTy - 2 || n.ty > endTy + 2) continue;
+        const sx = n.tx * TILE_SIZE - camX;
+        const sy = n.ty * TILE_SIZE - camY;
+
+        if (n.type === NODE_TYPE.TREE) {
+          ctx.drawImage(SPRITES.tree, sx, sy - 6);
+        } else if (n.type === NODE_TYPE.CAMPFIRE) {
+          drawCampfireSprite(sx, sy, timeSec);
+        } else if (n.type === NODE_TYPE.CHEST) {
+          ctx.drawImage(n.opened ? SPRITES.chest_open : SPRITES.chest, sx, sy);
+        } else {
+          ctx.drawImage(SPRITES[n.type], sx, sy);
+        }
+      }
+
+      // Blacksmith Bran NPC
+      const npcX = Math.round(state.npc.x - camX - 8);
+      const npcY = Math.round(state.npc.y - camY - 8);
+      ctx.drawImage(SPRITES.blacksmith, npcX, npcY);
+      if (!p.talkedToBran) {
+        const bounce = Math.sin(timeSec * 5) * 1.5;
+        ctx.fillStyle = "#ffd43b";
+        ctx.fillRect(npcX + 7, npcY - 8 + bounce, 2, 4);
+        ctx.fillRect(npcX + 7, npcY - 3 + bounce, 2, 1);
+      }
+
+      // Enemies & Boss
+      for (const e of state.enemies) {
+        const sx = Math.round(e.x - camX);
+        const sy = Math.round(e.y - camY);
+        if (sx < -32 || sy < -32 || sx > logicalW + 32 || sy > logicalH + 32) continue;
+
+        if (e.isBoss) {
+          ctx.drawImage(SPRITES.boss, sx - 16, sy - 16);
+          ctx.fillStyle = "#1a1118";
+          ctx.fillRect(sx - 20, sy - 23, 40, 4);
+          ctx.fillStyle = e.phase === 3 ? "#ff3b5c" : e.phase === 2 ? "#ff9933" : "#4ff2ff";
+          ctx.fillRect(sx - 19, sy - 22, Math.max(0, Math.round(38 * (e.hp / e.maxHp))), 2);
+        } else {
+          ctx.drawImage(SPRITES[e.kind], sx - 8, sy - 8);
+          if (e.hp < e.maxHp) {
+            ctx.fillStyle = "#1a1118";
+            ctx.fillRect(sx - 7, sy - 12, 14, 3);
+            ctx.fillStyle = "#ff4d6d";
+            ctx.fillRect(sx - 6, sy - 11, Math.max(0, Math.round(12 * (e.hp / e.maxHp))), 1);
+          }
+        }
+      }
+
+      // Render Remote Teammates
+      for (const rp of state.remotePlayers.values()) {
+        drawHeroCharacter(rp, false, timeSec);
+      }
+
+      // Render Local Player
+      drawHeroCharacter(p, true, timeSec);
+
+      // Projectiles
+      for (const pr of state.projectiles) {
+        const sx = Math.round(pr.x - camX);
+        const sy = Math.round(pr.y - camY);
+        ctx.fillStyle = pr.color;
+        if (pr.kind === "ember_wave") {
+          ctx.fillRect(sx - 4, sy - 4, 8, 8);
+          ctx.fillStyle = "#fff3b0";
+          ctx.fillRect(sx - 2, sy - 2, 4, 4);
+        } else {
+          ctx.fillRect(sx - 2, sy - 2, 4, 4);
+        }
+      }
+
+      // Build Mode Ghost Tile Preview
+      if (state.buildMode && state.screen === "playing") {
+        const target = getBuildTargetTile();
+        const gx = target.tx * TILE_SIZE - camX;
+        const gy = target.ty * TILE_SIZE - camY;
+        const def = BUILD_DEFS[state.selectedBuildIdx];
+        const valid = state.demolishMode
+          ? state.structures.has(keyFor(target.tx, target.ty))
+          : (canPlaceStructureAt(target.tx, target.ty, def) && hasResources(def.cost));
+
+        ctx.strokeStyle = state.demolishMode ? "#ff5566" : valid ? "#5eff8c" : "#ffaa33";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(gx + 0.5, gy + 0.5, TILE_SIZE - 1, TILE_SIZE - 1);
+      }
+
+      // Particles & Floating Numbers
+      for (const pt of state.particles) {
+        ctx.fillStyle = pt.color;
+        ctx.fillRect(Math.round(pt.x - camX), Math.round(pt.y - camY), pt.size, pt.size);
+      }
+
+      ctx.font = "bold 7px Inter, monospace";
+      for (const ft of state.floatTexts) {
+        const fx = Math.round(ft.x - camX - 16);
+        const fy = Math.round(ft.y - camY);
+        ctx.fillStyle = "#08060f";
+        ctx.fillText(ft.text, fx + 1, fy + 1);
+        ctx.fillStyle = ft.color;
+        ctx.fillText(ft.text, fx, fy);
+      }
+
+      // Dynamic Day/Night Lighting
+      const nightAlpha = getNightAlpha();
+      if (nightAlpha > 0.02) {
+        lightCtx.globalCompositeOperation = "source-over";
+        lightCtx.fillStyle = `rgba(8, 10, 26, ${nightAlpha.toFixed(3)})`;
+        lightCtx.fillRect(0, 0, logicalW, logicalH);
+
+        lightCtx.globalCompositeOperation = "destination-out";
+        const punchLight = (wx, wy, rad) => {
+          const lx = wx - camX;
+          const ly = wy - camY;
+          if (lx < -rad || ly < -rad || lx > logicalW + rad || ly > logicalH + rad) return;
+          const grad = lightCtx.createRadialGradient(lx, ly, 4, lx, ly, rad);
+          grad.addColorStop(0, "rgba(0,0,0,1)");
+          grad.addColorStop(1, "rgba(0,0,0,0)");
+          lightCtx.fillStyle = grad;
+          lightCtx.beginPath();
+          lightCtx.arc(lx, ly, rad, 0, Math.PI * 2);
+          lightCtx.fill();
+        };
+
+        punchLight(p.x, p.y, 78);
+        for (const rp of state.remotePlayers.values()) {
+          punchLight(rp.x, rp.y, 78);
+        }
+        for (const n of state.nodes) {
+          if (n.light) punchLight(n.tx * TILE_SIZE + 8, n.ty * TILE_SIZE + 8, n.light);
+        }
+        for (const st of state.structures.values()) {
+          if (st.light) punchLight(st.tx * TILE_SIZE + 8, st.ty * TILE_SIZE + 8, st.light);
+        }
+
+        ctx.drawImage(lightCanvas, 0, 0);
+      }
+    }
+
+    function drawCampfireSprite(sx, sy, timeSec) {
+      px(ctx, sx + 3, sy + 11, 10, 3, "#5c361a");
+      px(ctx, sx + 5, sy + 10, 6, 3, "#7a4924");
+      const flicker = Math.sin(timeSec * 14) > 0;
+      px(ctx, sx + 5, sy + 5, 6, 6, "#ff6a1c");
+      px(ctx, sx + 6, sy + (flicker ? 3 : 4), 4, 6, "#ffd43b");
+      px(ctx, sx + 7, sy + 6, 2, 3, "#ffffff");
+    }
+
+    function getCurrentObjective() {
+      if (state.player.downed) return "DOWNED! Wait for teammate to press USE";
+      if (!state.player.talkedToBran) return "Speak with Blacksmith Bran [USE]";
+      if (!playerHasItem("crystal_blade") && !playerHasItem("ember_sword")) {
+        return "Mine Crystals in East Caverns & craft Crystal Blade";
+      }
+      if (!state.gateUnlocked) return "Unlock Pulse Caverns Root Gate [USE]";
+      if (!state.bossDefeated) return "Defeat the Root Warden Boss in Sanctum!";
+      return "Explore Ashen Wastes & expand your Homestead!";
+    }
+
+    function drawHUD() {
+      const p = state.player;
+
+      // Top-Left Status Panel
+      ctx.fillStyle = "rgba(12, 10, 22, 0.84)";
+      ctx.fillRect(6, 6, 129, 32);
+      ctx.strokeStyle = "#483f6b";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(6.5, 6.5, 128, 31);
+
+      // HP Bar
+      ctx.fillStyle = "#261824";
+      ctx.fillRect(10, 10, 68, 6);
+      ctx.fillStyle = "#ff4466";
+      ctx.fillRect(10, 10, Math.round(68 * (p.hp / p.maxHp)), 6);
+      ctx.font = "bold 6px Inter, monospace";
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(`HP ${Math.ceil(p.hp)}/${p.maxHp}`, 12, 10);
+
+      // Stamina Bar
+      ctx.fillStyle = "#162426";
+      ctx.fillRect(10, 18, 68, 4);
+      ctx.fillStyle = "#47e89d";
+      ctx.fillRect(10, 18, Math.round(68 * (p.stamina / p.maxStamina)), 4);
+
+      // Day/Night & Room Badge
+      const isNight = getNightAlpha() > 0.25;
+      ctx.fillStyle = isNight ? "#8cb4ff" : "#ffd452";
+      ctx.fillText(`DAY ${state.dayCount} ${isNight ? "NIGHT" : "DAY"}`, 82, 10);
+
+      if (net.mode !== "solo") {
+        ctx.fillStyle = "#6ef7ff";
+        ctx.fillText(net.roomCode, 82, 18);
+      }
+
+      // Current Objective
+      ctx.fillStyle = "#d9d4eb";
+      ctx.fillText(getCurrentObjective().slice(0, 31), 10, 26);
+      const challenge = state.challenge;
+      if (challenge) {
+        ctx.font = "bold 6px Inter, monospace";
+        ctx.fillStyle = challenge.claimed ? "#7aff9e" : "#ffd98a";
+        const challengeLabel = `DAY QUEST ${challenge.progress}/${challenge.target} ${challenge.claimed ? "✓" : ""}`;
+        ctx.fillText(`${challengeLabel} ${challenge.label.slice(0, 22)}`, 10, 33);
+      }
+
+      // Top Utility Pills
+      for (const pill of getTopBarPills()) {
+        ctx.fillStyle = "rgba(22, 18, 38, 0.88)";
+        ctx.fillRect(pill.x, pill.y, pill.w, pill.h);
+        ctx.strokeStyle = "#5c5285";
+        ctx.strokeRect(pill.x + 0.5, pill.y + 0.5, pill.w - 1, pill.h - 1);
+        ctx.fillStyle = "#e8e3ff";
+        ctx.fillText(pill.label, pill.x + 3, pill.y + 4);
+      }
+
+      // Top-Right Minimap
+      const mm = getMinimapRect();
+      ctx.fillStyle = "rgba(10, 9, 18, 0.9)";
+      ctx.fillRect(mm.x - 1, mm.y - 1, mm.w + 2, mm.h + 2);
+      ctx.strokeStyle = "#5d5387";
+      ctx.strokeRect(mm.x - 0.5, mm.y - 0.5, mm.w + 1, mm.h + 1);
+
+      const scaleX = mm.w / WORLD_W;
+      const scaleY = mm.h / WORLD_H;
+      for (let ty = 0; ty < WORLD_H; ty += 2) {
+        for (let tx = 0; tx < WORLD_W; tx += 2) {
+          const b = state.biomes[ty][tx];
+          const t = state.tiles[ty][tx];
+          ctx.fillStyle =
+            t === TILE.WATER ? "#2b6cb0" :
+            t === TILE.LAVA ? "#e04f1a" :
+            b === BIOME.VILLAGE ? "#3b7a4d" :
+            b === BIOME.FOREST ? "#24573b" :
+            b === BIOME.CAVERNS ? "#3a3f54" : "#4a3235";
+          ctx.fillRect(
+            Math.floor(mm.x + tx * scaleX),
+            Math.floor(mm.y + ty * scaleY),
+            Math.ceil(scaleX * 2),
+            Math.ceil(scaleY * 2)
+          );
+        }
+      }
+
+      // Remote Teammates on Minimap
+      for (const rp of state.remotePlayers.values()) {
+        ctx.fillStyle = rp.color || "#5ceeff";
+        ctx.fillRect(Math.floor(mm.x + (rp.x / TILE_SIZE) * scaleX) - 1, Math.floor(mm.y + (rp.y / TILE_SIZE) * scaleY) - 1, 3, 3);
+      }
+
+      // Local Player dot on Minimap
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(
+        Math.floor(mm.x + (p.x / TILE_SIZE) * scaleX) - 1,
+        Math.floor(mm.y + (p.y / TILE_SIZE) * scaleY) - 1,
+        3,
+        3
+      );
+
+      // Compact Resource Strip below Minimap
+      const resItems = [
+        ["WD", state.resources.wood, "#cfa063"],
+        ["ST", state.resources.stone, "#b8c4d9"],
+        ["HB", state.resources.herb, "#6bff95"],
+        ["IR", state.resources.iron, "#f5ba84"],
+        ["CR", state.resources.crystal, "#6ef7ff"],
+        ["CL", state.resources.coal, "#a8a3ba"],
+        ["EM", state.resources.ember, "#ff8b33"]
+      ];
+      const resBoxW = 76;
+      const resBoxX = logicalW - resBoxW - 6;
+      const resBoxY = mm.y + mm.h + 4;
+      ctx.fillStyle = "rgba(12, 10, 22, 0.84)";
+      ctx.fillRect(resBoxX, resBoxY, resBoxW, 24);
+      ctx.strokeStyle = "#483f6b";
+      ctx.strokeRect(resBoxX + 0.5, resBoxY + 0.5, resBoxW - 1, 23);
+
+      resItems.forEach(([tag, val, col], idx) => {
+        const colIdx = idx % 4;
+        const rowIdx = Math.floor(idx / 4);
+        const rx = resBoxX + 3 + colIdx * 18;
+        const ry = resBoxY + 3 + rowIdx * 10;
+        ctx.fillStyle = col;
+        ctx.fillText(`${tag}${val}`, rx, ry);
+      });
+
+      // Toast Notification Banner
+      if (state.toastTimer > 0 && state.toastText) {
+        ctx.font = "bold 7px Inter, monospace";
+        const tw = ctx.measureText(state.toastText).width + 12;
+        const tx = Math.floor((logicalW - tw) / 2);
+        ctx.fillStyle = "rgba(14, 11, 28, 0.92)";
+        ctx.fillRect(tx, 58, tw, 14);
+        ctx.strokeStyle = "#ffd452";
+        ctx.strokeRect(tx + 0.5, 58.5, tw - 1, 13);
+        ctx.fillStyle = "#fff5d6";
+        ctx.fillText(state.toastText, tx + 6, 61);
+      }
+
+      // Quick Chat Selector Popup
+      if (state.quickChatOpen) {
+        for (const q of getQuickChatRects()) {
+          ctx.fillStyle = "rgba(22, 18, 42, 0.95)";
+          ctx.fillRect(q.x, q.y, q.w, q.h);
+          ctx.strokeStyle = "#cbb5ff";
+          ctx.strokeRect(q.x + 0.5, q.y + 0.5, q.w - 1, q.h - 1);
+          ctx.fillStyle = "#ffffff";
+          ctx.fillText(q.text, q.x + 5, q.y + 5);
+        }
+      }
+
+      // Build Mode Palette
+      if (state.buildMode) {
+        const pRects = getBuildPaletteRects();
+        for (const pr of pRects) {
+          const isSel = pr.item.id === "demolish"
+            ? state.demolishMode
+            : (!state.demolishMode && pr.idx === state.selectedBuildIdx);
+          ctx.fillStyle = isSel ? "rgba(65, 52, 112, 0.95)" : "rgba(14, 12, 26, 0.9)";
+          ctx.fillRect(pr.x, pr.y, pr.w, pr.h);
+          ctx.strokeStyle = isSel ? "#ffd452" : "#4b4270";
+          ctx.strokeRect(pr.x + 0.5, pr.y + 0.5, pr.w - 1, pr.h - 1);
+          ctx.fillStyle = pr.item.id === "demolish" ? "#ff7b8a" : "#f3efe6";
+          ctx.fillText(pr.item.short, pr.x + 3, pr.y + 5);
+        }
+      }
+
+      // Bottom-Center 5-Slot Hotbar
+      const hRects = getHotbarRects();
+      for (const hr of hRects) {
+        const selected = !state.buildMode && hr.index === state.selectedSlot;
+        ctx.fillStyle = selected ? "rgba(52, 42, 92, 0.95)" : "rgba(14, 12, 26, 0.9)";
+        ctx.fillRect(hr.x, hr.y, hr.w, hr.h);
+        ctx.strokeStyle = selected ? "#ffd452" : "#4c4373";
+        ctx.strokeRect(hr.x + 0.5, hr.y + 0.5, hr.w - 1, hr.h - 1);
+
+        const slot = state.hotbar[hr.index];
+        if (slot) {
+          const def = ITEM_DEFS[slot.id];
+          ctx.fillStyle = def.color;
+          ctx.fillRect(hr.x + 6, hr.y + 6, 9, 9);
+          if (slot.count > 1) {
+            ctx.fillStyle = "#ffffff";
+            ctx.fillText(String(slot.count), hr.x + 13, hr.y + 13);
+          }
+        }
+        ctx.fillStyle = "#9d94bd";
+        ctx.fillText(String(hr.index + 1), hr.x + 2, hr.y + 2);
+      }
+
+      // Touch Controls (Joystick + Tactile Buttons)
+      if (showTouchControls) {
+        const jx = joy.active ? joy.baseX : 42;
+        const jy = joy.active ? joy.baseY : logicalH - 42;
+        ctx.strokeStyle = "rgba(255,255,255,0.28)";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(jx, jy, 24, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.fillStyle = "rgba(255,255,255,0.42)";
+        ctx.beginPath();
+        ctx.arc(joy.active ? joy.knobX : jx, joy.active ? joy.knobY : jy, 10, 0, Math.PI * 2);
+        ctx.fill();
+
+        for (const btn of getTouchButtons()) {
+          ctx.fillStyle = btn.bg;
+          ctx.fillRect(btn.x, btn.y, btn.w, btn.h);
+          ctx.strokeStyle = btn.border;
+          ctx.lineWidth = 1;
+          ctx.strokeRect(btn.x + 0.5, btn.y + 0.5, btn.w - 1, btn.h - 1);
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "bold 7px Inter, monospace";
+          const lw = ctx.measureText(btn.label).width;
+          ctx.fillText(btn.label, Math.floor(btn.x + (btn.w - lw) / 2), Math.floor(btn.y + (btn.h - 7) / 2));
+        }
+      }
+    }
+
+    function drawModalsAndScreens() {
+      if (state.screen === "title") return;
+
+      if (state.screen === "gameover") {
+        ctx.fillStyle = "rgba(18, 4, 8, 0.82)";
+        ctx.fillRect(0, 0, logicalW, logicalH);
+        ctx.font = "bold 16px Inter, monospace";
+        ctx.fillStyle = "#ff4d6d";
+        const t = "YOU FELL IN THE VEIL";
+        ctx.fillText(t, Math.floor((logicalW - ctx.measureText(t).width) / 2), Math.floor(logicalH / 2) - 24);
+        ctx.font = "bold 8px Inter, monospace";
+        ctx.fillStyle = "#f3efe6";
+        const sub = "Tap anywhere or press [R] to Respawn at your Bed / Camp";
+        ctx.fillText(sub, Math.floor((logicalW - ctx.measureText(sub).width) / 2), Math.floor(logicalH / 2) + 4);
+        return;
+      }
+
+      if (state.screen === "victory") {
+        ctx.fillStyle = "rgba(10, 18, 28, 0.85)";
+        ctx.fillRect(0, 0, logicalW, logicalH);
+        ctx.font = "bold 15px Inter, monospace";
+        ctx.fillStyle = "#ffd452";
+        const t = "ROOT WARDEN VANQUISHED!";
+        ctx.fillText(t, Math.floor((logicalW - ctx.measureText(t).width) / 2), Math.floor(logicalH / 2) - 26);
+        ctx.font = "bold 8px Inter, monospace";
+        ctx.fillStyle = "#78f0ff";
+        const sub = "Pulse Caverns are freed! Tap or press [SPACE] to keep exploring.";
+        ctx.fillText(sub, Math.floor((logicalW - ctx.measureText(sub).width) / 2), Math.floor(logicalH / 2) + 4);
+        return;
+      }
+
+      if (state.modal === "crafting") {
+        const { bx, by, boxW, boxH, rows } = getCraftingCardRects();
+        ctx.fillStyle = "rgba(12, 10, 24, 0.96)";
+        ctx.fillRect(bx, by, boxW, boxH);
+        ctx.strokeStyle = "#6e61a3";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(bx + 0.5, by + 0.5, boxW - 1, boxH - 1);
+
+        ctx.font = "bold 8px Inter, monospace";
+        ctx.fillStyle = "#ffd452";
+        ctx.fillText("CRAFTING & BLUEPRINTS (Tap row to craft)", bx + 10, by + 7);
+
+        ctx.font = "bold 6px Inter, monospace";
+        for (const r of rows) {
+          const can = hasResources(r.recipe.cost);
+          ctx.fillStyle = can ? "rgba(38, 68, 56, 0.9)" : "rgba(28, 24, 44, 0.85)";
+          ctx.fillRect(r.x, r.y, r.w, r.h);
+          ctx.strokeStyle = can ? "#5eff8c" : "#443c66";
+          ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+
+          ctx.fillStyle = can ? "#ffffff" : "#9c94bd";
+          ctx.fillText(r.recipe.name, r.x + 5, r.y + 3);
+
+          const costStr = Object.entries(r.recipe.cost)
+            .map(([k, v]) => `${v}${k.slice(0, 2).toUpperCase()}`)
+            .join(" ");
+          ctx.fillStyle = can ? "#ffd452" : "#787096";
+          const cw = ctx.measureText(costStr).width;
+          ctx.fillText(costStr, r.x + r.w - cw - 6, r.y + 3);
+        }
+
+        ctx.fillStyle = "#b4abd6";
+        ctx.fillText("Tap outside or press [C] / [ESC] to close", bx + 10, by + boxH - 11);
+      } else if (state.modal === "dialogue") {
+        const bw = Math.min(logicalW - 24, 340);
+        const bh = 68;
+        const bx = Math.floor((logicalW - bw) / 2);
+        const by = logicalH - bh - 34;
+        ctx.fillStyle = "rgba(12, 10, 24, 0.96)";
+        ctx.fillRect(bx, by, bw, bh);
+        ctx.strokeStyle = "#ffd452";
+        ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
+
+        ctx.font = "bold 7px Inter, monospace";
+        ctx.fillStyle = "#f3efe6";
+        const words = state.dialogueText.split(" ");
+        let line = "", ly = by + 8;
+        for (const w of words) {
+          const test = line + w + " ";
+          if (ctx.measureText(test).width > bw - 16) {
+            ctx.fillText(line, bx + 8, ly);
+            line = w + " ";
+            ly += 10;
+          } else {
+            line = test;
+          }
+        }
+        ctx.fillText(line, bx + 8, ly);
+        ctx.fillStyle = "#78f0ff";
+        ctx.fillText("[Tap or press E to continue]", bx + 8, by + bh - 12);
+      } else if (state.modal === "map") {
+        const mw = Math.min(logicalW - 24, 300);
+        const mh = Math.min(logicalH - 24, 190);
+        const mx = Math.floor((logicalW - mw) / 2);
+        const my = Math.floor((logicalH - mh) / 2);
+        ctx.fillStyle = "rgba(10, 9, 20, 0.96)";
+        ctx.fillRect(mx - 4, my - 14, mw + 8, mh + 26);
+        ctx.strokeStyle = "#ffd452";
+        ctx.strokeRect(mx - 3.5, my - 13.5, mw + 7, mh + 25);
+
+        ctx.font = "bold 7px Inter, monospace";
+        ctx.fillStyle = "#ffd452";
+        ctx.fillText("EMBERVEIL WORLD MAP (Tap or [M] to close)", mx, my - 10);
+
+        const sx = mw / WORLD_W;
+        const sy = mh / WORLD_H;
+        for (let ty = 0; ty < WORLD_H; ty++) {
+          for (let tx = 0; tx < WORLD_W; tx++) {
+            const b = state.biomes[ty][tx];
+            const t = state.tiles[ty][tx];
+            ctx.fillStyle =
+              t === TILE.WATER ? "#2b6cb0" :
+              t === TILE.LAVA ? "#e04f1a" :
+              t === TILE.ROOT_GATE ? "#4ff2ff" :
+              b === BIOME.VILLAGE ? "#3b7a4d" :
+              b === BIOME.FOREST ? "#24573b" :
+              b === BIOME.CAVERNS ? "#3a3f54" : "#4a3235";
+            ctx.fillRect(Math.floor(mx + tx * sx), Math.floor(my + ty * sy), Math.ceil(sx), Math.ceil(sy));
+          }
+        }
+
+        // Player & Ally markers
+        const pxPos = Math.floor(mx + (state.player.x / TILE_SIZE) * sx);
+        const pyPos = Math.floor(my + (state.player.y / TILE_SIZE) * sy);
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(pxPos - 2, pyPos - 2, 4, 4);
+
+        for (const rp of state.remotePlayers.values()) {
+          ctx.fillStyle = rp.color || "#5ceeff";
+          ctx.fillRect(Math.floor(mx + (rp.x / TILE_SIZE) * sx) - 2, Math.floor(my + (rp.y / TILE_SIZE) * sy) - 2, 4, 4);
+        }
+
+        ctx.fillStyle = "#d9d4eb";
+        ctx.fillText("West: Village | North: Forest | East: Caverns & Boss | Far East: Wastes", mx, my + mh + 3);
+      } else if (state.modal === "pause") {
+        ctx.fillStyle = "rgba(8, 6, 16, 0.82)";
+        ctx.fillRect(0, 0, logicalW, logicalH);
+        const bw = 150, bh = 22;
+        const bx = Math.floor((logicalW - bw) / 2);
+        const by = Math.floor(logicalH / 2) - 24;
+
+        const opts = ["RESUME GAME", "SAVE PROGRESS", "QUIT TO TITLE"];
+        opts.forEach((lbl, idx) => {
+          const oy = by + idx * 28;
+          ctx.fillStyle = "#1f1a36";
+          ctx.fillRect(bx, oy, bw, bh);
+          ctx.strokeStyle = "#78f0ff";
+          ctx.strokeRect(bx + 0.5, oy + 0.5, bw - 1, bh - 1);
+          ctx.font = "bold 8px Inter, monospace";
+          ctx.fillStyle = "#ffffff";
+          ctx.fillText(lbl, Math.floor(bx + (bw - ctx.measureText(lbl).width) / 2), oy + 7);
+        });
+      }
+    }
+
+    /* =========================================================================
+       14. BOOTSTRAP & ANIMATION LOOP
+       ========================================================================= */
+    generateWorld(133742);
+    state.camera.x = 12 * TILE_SIZE;
+    state.camera.y = 33 * TILE_SIZE;
+
+    let lastTime = 0;
+    function gameLoop(timestamp) {
+      if (!lastTime) lastTime = timestamp;
+      const dt = Math.min(0.05, Math.max(0.001, (timestamp - lastTime) / 1000));
+      lastTime = timestamp;
+
+      enforceContextState();
+      updateSimulation(dt);
+      renderWorld();
+      if (state.screen !== "title") drawHUD();
+      drawModalsAndScreens();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    window.addEventListener("load", () => {
+      resizeCanvas();
+      requestAnimationFrame(gameLoop);
+    });
+  </script>
+</body>
+</html>
