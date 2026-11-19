@@ -1,0 +1,94 @@
+name: Build EMBERVEIL APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Create Cordova Android Project
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null 2>&1 || true
+          npx -y cordova@12 create game-app com.ousama.emberveil "EMBERVEIL"
+          cd game-app
+          npx -y cordova@12 platform add android@13
+          rm -rf www/*
+
+      - name: Copy Game HTML & Prepare App Icon
+        run: |
+          HTML_FILE=$(find . -maxdepth 1 -type f -iname "*.html" | head -n 1)
+          if [ -n "$HTML_FILE" ]; then
+            cp "$HTML_FILE" game-app/www/index.html
+          else
+            echo "ERROR: No HTML file found!" && exit 1
+          fi
+
+          mkdir -p game-app/res
+          FOUND_IMG=""
+          for f in *; do
+            if [ -f "$f" ]; then
+              MIME=$(file --mime-type -b "$f")
+              if [[ "$MIME" == image/* ]]; then
+                FOUND_IMG="$f"
+                break
+              fi
+            fi
+          done
+
+          python3 -m pip install --quiet pillow
+          if [ -n "$FOUND_IMG" ]; then
+            echo "Using uploaded image for icon: $FOUND_IMG"
+            python3 -c "from PIL import Image; img = Image.open('$FOUND_IMG').convert('RGBA').resize((512, 512)); img.save('game-app/res/icon.png', 'PNG')"
+          else
+            echo "No image uploaded; generating default EMBERVEIL pixel-art icon"
+            python3 -c "
+from PIL import Image, ImageDraw
+img = Image.new('RGBA', (512, 512), (15, 12, 27, 255))
+d = ImageDraw.Draw(img)
+d.rectangle([24, 24, 488, 488], outline=(255, 212, 82, 255), width=16)
+d.polygon([(256, 88), (368, 256), (328, 408), (184, 408), (144, 256)], fill=(255, 106, 28, 255))
+d.polygon([(256, 152), (328, 272), (296, 392), (216, 392), (184, 272)], fill=(255, 212, 59, 255))
+d.ellipse([228, 284, 284, 356], fill=(255, 255, 255, 255))
+img.save('game-app/res/icon.png', 'PNG')
+"
+          fi
+
+      - name: Configure config.xml & Force Custom Android Icon
+        run: |
+          cd game-app
+          sed -i '/<\/widget>/i <icon src="res\/icon.png" />' config.xml
+          sed -i '/<\/widget>/i <preference name="Orientation" value="landscape" />' config.xml
+          sed -i '/<\/widget>/i <preference name="Fullscreen" value="true" />' config.xml
+          sed -i '/<\/widget>/i <allow-navigation href="*" />' config.xml
+          npx -y cordova@12 prepare android
+          rm -rf platforms/android/app/src/main/res/mipmap-anydpi-v26
+          find platforms/android/app/src/main/res/ -type f \( -name "ic_launcher.png" -o -name "ic_launcher_round.png" -o -name "ic_launcher_foreground.png" \) -exec cp res/icon.png {} \;
+
+      - name: Compile Debug APK
+        run: |
+          cd game-app
+          npx -y cordova@12 compile android --debug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: EMBERVEIL-APK
+          path: game-app/platforms/android/app/build/outputs/apk/debug/app-debug.apk
