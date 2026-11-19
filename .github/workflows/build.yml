@@ -58,17 +58,8 @@ jobs:
             echo "Using uploaded image for icon: $FOUND_IMG"
             python3 -c "from PIL import Image; img = Image.open('$FOUND_IMG').convert('RGBA').resize((512, 512)); img.save('game-app/res/icon.png', 'PNG')"
           else
-            echo "No image uploaded; generating default EMBERVEIL pixel-art icon"
-            python3 -c "
-from PIL import Image, ImageDraw
-img = Image.new('RGBA', (512, 512), (15, 12, 27, 255))
-d = ImageDraw.Draw(img)
-d.rectangle([24, 24, 488, 488], outline=(255, 212, 82, 255), width=16)
-d.polygon([(256, 88), (368, 256), (328, 408), (184, 408), (144, 256)], fill=(255, 106, 28, 255))
-d.polygon([(256, 152), (328, 272), (296, 392), (216, 392), (184, 272)], fill=(255, 212, 59, 255))
-d.ellipse([228, 284, 284, 356], fill=(255, 255, 255, 255))
-img.save('game-app/res/icon.png', 'PNG')
-"
+            echo "Generating default EMBERVEIL icon"
+            python3 -c "from PIL import Image, ImageDraw; img = Image.new('RGBA', (512, 512), (15, 12, 27, 255)); d = ImageDraw.Draw(img); d.rectangle([24, 24, 488, 488], outline=(255, 212, 82, 255), width=16); d.polygon([(256, 88), (368, 256), (328, 408), (184, 408), (144, 256)], fill=(255, 106, 28, 255)); d.polygon([(256, 152), (328, 272), (296, 392), (216, 392), (184, 272)], fill=(255, 212, 59, 255)); d.ellipse([228, 284, 284, 356], fill=(255, 255, 255, 255)); img.save('game-app/res/icon.png', 'PNG')"
           fi
 
       - name: Configure config.xml & Force Custom Android Icon
